@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Moscool Technical Services{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section id="home" class="hero-section">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-5 mb-lg-0">
+                <h1 class="display-4 fw-bold text-dark mb-4">
+                    Professional <span class="text-primary">Technical Services</span> You Can Trust
+                </h1>
+                <p class="lead text-muted mb-4">
+                    Expert installation, repair, and maintenance services for refrigeration, air-conditioning,
+                    solar systems, electrical work, and more. Available 24/7 for your technical needs.
+                </p>
+                <div class="d-flex flex-column flex-sm-row gap-3 mb-4">
+                    <button class="btn btn-primary btn-custom" onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth'})">
+                        Schedule Service
+                    </button>
+                    <a href="tel:+2349033150460" class="btn btn-outline-primary btn-custom">
+                        Emergency Call
+                    </a>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-bolt text-warning me-2"></i>
+                            <span class="text-muted">24/7 Emergency</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-wrench text-primary me-2"></i>
+                            <span class="text-muted">Expert Technicians</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-shield-alt text-success me-2"></i>
+                            <span class="text-muted">Licensed & Insured</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 position-relative">
+                <div class="text-center">
+                    <img src="https://images.unsplash.com/photo-1621905251918-48416bd8575a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                         alt="Professional technician working"
+                         class="img-fluid rounded shadow-custom">
+                    <div class="position-absolute top-50 start-0 translate-middle-y bg-white p-3 rounded shadow-custom" style="z-index: 10;">
+                        <div class="h3 text-primary mb-0">15+</div>
+                        <div class="text-muted small">Years Experience</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section id="services" class="py-5 bg-light">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Our Technical Services</h2>
+            <p class="section-subtitle">
+                We provide comprehensive technical services across multiple specialties,
+                ensuring your systems run efficiently and reliably.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Refrigeration -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-snowflake text-primary fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Refrigeration</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Commercial and residential refrigeration installation, repair, and maintenance services.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Installation</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Emergency Repairs</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Preventive Maintenance</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Energy Efficiency Upgrades</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Air Conditioning -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-wind text-primary fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Air Conditioning</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Complete HVAC solutions including installation, servicing, and energy-efficient upgrades.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>AC Installation</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Duct Cleaning</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>System Repairs</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Regular Servicing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Solar Systems -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-sun text-warning fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Solar Systems</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Solar panel installation, maintenance, and consulting for sustainable energy solutions.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Solar Installation</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>System Design</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Performance Monitoring</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Maintenance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inverter Services -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-info bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-plug text-info fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Inverter Services</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Power inverter installation, repair, and optimization for uninterrupted power supply.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Inverter Installation</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Battery Replacement</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>System Upgrades</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Troubleshooting</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Electrical Work -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-bolt text-warning fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Electrical Work</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Comprehensive electrical services from wiring to safety inspections and upgrades.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Wiring & Rewiring</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Electrical Panels</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Safety Inspections</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Code Compliance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Consulting -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card service-card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success bg-opacity-10 p-3 rounded me-3">
+                                <i class="fas fa-user-tie text-success fa-2x"></i>
+                            </div>
+                            <h5 class="card-title mb-0 fw-bold">Consulting</h5>
+                        </div>
+                        <p class="card-text text-muted mb-3">
+                            Expert technical consulting to help you make informed decisions about your systems.
+                        </p>
+                        <ul class="list-unstyled text-muted small">
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>System Analysis</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Energy Audits</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Upgrade Recommendations</li>
+                            <li class="mb-1"><i class="fas fa-check text-success me-2"></i>Cost Optimization</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section id="about" class="py-5">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-5 mb-lg-0">
+                <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                     alt="Professional team at work"
+                     class="img-fluid rounded shadow-custom">
+            </div>
+
+            <div class="col-lg-6">
+                <h2 class="section-title">Why Choose Moscool Technical Services?</h2>
+                <p class="text-muted mb-4 lead">
+                    With over 15 years of experience in the technical services industry, we've built our
+                    reputation on reliability, expertise, and exceptional customer service.
+                </p>
+                <p class="text-muted mb-4">
+                    Our certified technicians are equipped with the latest tools and knowledge to handle any technical challenge.
+                    From emergency repairs to planned installations, we're committed to keeping your systems
+                    running smoothly and efficiently.
+                </p>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h2 text-primary mb-2">15+</div>
+                            <div class="text-muted">Years Experience</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h2 text-success mb-2">500+</div>
+                            <div class="text-muted">Happy Customers</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h2 text-info mb-2">24/7</div>
+                            <div class="text-muted">Emergency Service</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h2 text-warning mb-2">4.9</div>
+                            <div class="text-muted">Average Rating</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Portfolio Section -->
+<section id="portfolio" class="py-5 bg-light">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Our Work & Marketplace</h2>
+            <p class="section-subtitle">
+                Showcasing our recent projects and items available for purchase
+            </p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="d-flex justify-content-center mb-4">
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="portfolio-tab" id="portfolio-tab" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="portfolio-tab">Portfolio ({{ portfolio_posts|length }})</label>
+
+                <input type="radio" class="btn-check" name="portfolio-tab" id="marketplace-tab" autocomplete="off">
+                <label class="btn btn-outline-primary" for="marketplace-tab">For Sale ({{ sale_posts|length }})</label>
+            </div>
+        </div>
+
+        <!-- Portfolio Content -->
+        <div id="portfolio-content">
+            {% if portfolio_posts %}
+                <div class="row g-4">
+                    {% for post in portfolio_posts %}
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card portfolio-item h-100 border-0 shadow-sm">
+                                {% if post.image_url %}
+                                    <div class="position-relative overflow-hidden">
+                                        <img src="{{ post.image_url }}" alt="{{ post.title }}"
+                                             class="card-img-top" style="height: 200px; object-fit: cover;">
+                                        <div class="position-absolute top-0 end-0 m-2">
+                                            <span class="badge bg-primary">Portfolio</span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold">{{ post.title }}</h6>
+                                    <p class="card-text text-muted small">{{ post.content[:100] }}...</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ post.created_at.strftime('%B %d, %Y') }}</small>
+                                        <a href="{{ url_for('post_detail', post_id=post.id) }}"
+                                           class="btn btn-primary btn-sm">View Details</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">No portfolio items available at the moment.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Marketplace Content (Hidden by default) -->
+        <div id="marketplace-content" style="display: none;">
+            {% if sale_posts %}
+                <div class="row g-4">
+                    {% for post in sale_posts %}
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card portfolio-item h-100 border-0 shadow-sm">
+                                {% if post.image_url %}
+                                    <div class="position-relative overflow-hidden">
+                                        <img src="{{ post.image_url }}" alt="{{ post.title }}"
+                                             class="card-img-top" style="height: 200px; object-fit: cover;">
+                                        <div class="position-absolute top-0 end-0 m-2">
+                                            <span class="badge bg-success">For Sale</span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold">{{ post.title }}</h6>
+                                    {% if post.price %}
+                                        <p class="text-success fw-bold mb-1">{{ post.currency }} {{ "%.2f"|format(post.price) }}</p>
+                                    {% endif %}
+                                    <p class="card-text text-muted small">{{ post.content[:100] }}...</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ post.created_at.strftime('%B %d, %Y') }}</small>
+                                        <a href="{{ url_for('post_detail', post_id=post.id) }}"
+                                           class="btn btn-success btn-sm">View Details</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">No items for sale at the moment.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- News Section -->
+<section id="news" class="py-5">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Industry News</h2>
+            <p class="section-subtitle">
+                Stay updated with the latest technical news in HVAC, solar, electrical, and refrigeration industries
+            </p>
+        </div>
+
+        {% if news_articles %}
+            <div class="row g-4">
+                {% for article in news_articles %}
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card news-card h-100 border-0 shadow-sm">
+                            {% if article.image_url %}
+                                <img src="{{ article.image_url }}" alt="{{ article.title }}"
+                                     class="card-img-top" style="height: 200px; object-fit: cover;">
+                            {% endif %}
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <small class="text-muted">{{ article.source_id }}</small>
+                                    <small class="text-muted">{{ article.pub_date.strftime('%b %d, %I:%M %p') }}</small>
+                                </div>
+                                <h6 class="card-title fw-bold">{{ article.title }}</h6>
+                                <p class="card-text text-muted small">{{ article.description[:150] }}...</p>
+                                <a href="{{ article.link }}" target="_blank"
+                                   class="btn btn-outline-primary btn-sm">
+                                    Read More <i class="fas fa-external-link-alt ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if news_pagination.pages > 1 %}
+                <nav aria-label="News pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if news_pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('home', page=news_pagination.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span>
+                            </li>
+                        {% endif %}
+
+                        {% for page_num in news_pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num == news_pagination.page %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('home', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if news_pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('home', page=news_pagination.next_num) }}">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">Next <i class="fas fa-chevron-right"></i></span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted">No news articles available at the moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Feedback Section -->
+<section id="feedback" class="py-5 bg-light">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Send Us Your Feedback</h2>
+            <p class="section-subtitle">
+                We value your opinion! Share your feedback, suggestions, or experiences with our services.
+            </p>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('submit_feedback') }}">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="name" class="form-label">Name *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="email" name="email" required>
+                                </div>
+                                <div class="col-12">
+                                    <label for="subject" class="form-label">Subject *</label>
+                                    <input type="text" class="form-control" id="subject" name="subject" required>
+                                </div>
+                                <div class="col-12">
+                                    <label for="message" class="form-label">Message *</label>
+                                    <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary btn-custom w-100">
+                                        Send Feedback
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section id="contact" class="py-5">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Get In Touch</h2>
+            <p class="section-subtitle">
+                Ready to schedule a service or need emergency assistance? Contact us today for
+                fast, reliable technical solutions.
+            </p>
+        </div>
+
+        <div class="row g-5">
+            <!-- Contact Form -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-envelope me-2"></i>Send us a Message</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ url_for('submit_contact') }}">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="contact-name" class="form-label">Name *</label>
+                                    <input type="text" class="form-control" id="contact-name" name="name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="contact-email" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="contact-email" name="email" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="service-needed" class="form-label">Service Needed</label>
+                                    <input type="text" class="form-control" id="service-needed" name="service_needed">
+                                </div>
+                                <div class="col-12">
+                                    <label for="contact-message" class="form-label">Message *</label>
+                                    <textarea class="form-control" id="contact-message" name="message" rows="5" required></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary btn-custom w-100">
+                                        Send Message
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="col-lg-6">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-phone text-primary fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">Emergency Line</h6>
+                                        <p class="mb-0 text-muted">+234(90)33150460</p>
+                                        <small class="text-muted">Available 24/7 for emergencies</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-success bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fab fa-whatsapp text-success fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">WhatsApp</h6>
+                                        <p class="mb-0 text-muted">+2349033150460</p>
+                                        <small class="text-muted">Quick response guaranteed</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-info bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-envelope text-info fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">Email Us</h6>
+                                        <p class="mb-0 text-muted">dayotunde25@gmail.com</p>
+                                        <small class="text-muted">We'll respond within 2 hours</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-clock text-warning fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">Business Hours</h6>
+                                        <p class="mb-0 text-muted">Mon-Fri: 8:00 AM - 6:00 PM</p>
+                                        <p class="mb-0 text-muted">Sat-Sun: Emergency Only</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Tab switching for portfolio/marketplace
+document.querySelectorAll('input[name="portfolio-tab"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const portfolioContent = document.getElementById('portfolio-content');
+        const marketplaceContent = document.getElementById('marketplace-content');
+
+        if (this.id === 'portfolio-tab') {
+            portfolioContent.style.display = 'block';
+            marketplaceContent.style.display = 'none';
+        } else {
+            portfolioContent.style.display = 'none';
+            marketplaceContent.style.display = 'block';
+        }
+    });
+});
+
+// Smooth scrolling for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

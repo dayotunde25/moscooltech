@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Submissions - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-tools me-2"></i>Admin Dashboard
+            </a>
+
+            <div class="d-flex">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-light me-2">
+                    <i class="fas fa-home me-1"></i>View Site
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-comments me-2"></i>Feedback Submissions</h2>
+                <p class="text-muted mb-0">Manage customer feedback and testimonials</p>
+            </div>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Feedback Submissions -->
+        {% if feedbacks %}
+            <div class="row g-4">
+                {% for feedback in feedbacks %}
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0 fw-bold">{{ feedback.name }}</h6>
+                                <small class="text-muted">{{ feedback.created_at.strftime('%b %d, %Y %H:%M') }}</small>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-sm-6">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-envelope text-primary me-2"></i>
+                                            <span class="small">{{ feedback.email }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-tag text-info me-2"></i>
+                                            <span class="small fw-bold">{{ feedback.subject }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="mb-3">
+                                    <h6 class="fw-bold mb-2">Feedback:</h6>
+                                    <p class="text-muted mb-0">{{ feedback.message }}</p>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <a href="mailto:{{ feedback.email }}?subject=Re: {{ feedback.subject }}"
+                                       class="btn btn-primary btn-sm">
+                                        <i class="fas fa-reply me-1"></i>Reply
+                                    </a>
+                                    <button class="btn btn-success btn-sm mark-reviewed-btn"
+                                            data-feedback-id="{{ feedback.id }}">
+                                        <i class="fas fa-check me-1"></i>Mark Reviewed
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Feedback Submissions</h4>
+                    <p class="text-muted mb-4">Customer feedback will appear here when they share their experiences.</p>
+                    <a href="{{ url_for('home') }}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>View Website
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Success</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Feedback marked as reviewed successfully!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.mark-reviewed-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const feedbackId = this.getAttribute('data-feedback-id');
+
+                    // In a real application, you would send an AJAX request to mark the feedback as reviewed
+                    // For now, we'll just show a success message
+                    const modal = new bootstrap.Modal(document.getElementById('successModal'));
+                    modal.show();
+
+                    // You could also update the UI to show the feedback as reviewed
+                    // For example, add a "Reviewed" badge or change the styling
+                    this.innerHTML = '<i class="fas fa-check-circle me-1"></i>Reviewed';
+                    this.classList.remove('btn-success');
+                    this.classList.add('btn-secondary');
+                    this.disabled = true;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

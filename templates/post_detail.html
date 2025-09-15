@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - Moscool Technical Services{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Home
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-custom">
+                <!-- Post Image/Video -->
+                {% if post.image_url or post.video_url %}
+                    <div class="card-img-top p-0">
+                        {% if post.video_url %}
+                            <video controls class="w-100" style="max-height: 400px;">
+                                <source src="{{ post.video_url }}" type="video/mp4">
+                                {% if post.image_url %}
+                                    <img src="{{ post.image_url }}" alt="{{ post.title }}" class="w-100" style="max-height: 400px; object-fit: cover;">
+                                {% endif %}
+                                Your browser does not support the video tag.
+                            </video>
+                        {% elif post.image_url %}
+                            <img src="{{ post.image_url }}" alt="{{ post.title }}"
+                                 class="w-100" style="max-height: 400px; object-fit: cover;">
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <div class="card-body p-4">
+                    <!-- Post Header -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h1 class="h2 fw-bold text-dark mb-2">{{ post.title }}</h1>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <span class="badge bg-{{ 'primary' if post.post_type == 'portfolio' else 'success' }}">
+                                    {{ 'Portfolio' if post.post_type == 'portfolio' else 'For Sale' }}
+                                </span>
+                                <span class="badge bg-secondary">{{ post.category }}</span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted d-block">
+                                <i class="fas fa-calendar me-1"></i>{{ post.created_at.strftime('%B %d, %Y') }}
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>{{ post.created_at.strftime('%I:%M %p') }}
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Price (for sale items) -->
+                    {% if post.post_type == 'sale' and post.price %}
+                        <div class="bg-success bg-opacity-10 border border-success rounded p-3 mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-tag text-success me-2"></i>
+                                    <div>
+                                        <span class="h4 text-success mb-0 fw-bold">
+                                            {{ post.currency }} {{ "%.2f"|format(post.price) }}
+                                        </span>
+                                        <div class="small text-muted">
+                                            {% if post.negotiable %}
+                                                <i class="fas fa-handshake text-info me-1"></i>Negotiable
+                                            {% else %}
+                                                <i class="fas fa-lock text-warning me-1"></i>Fixed Price
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if post.item_link %}
+                                    <div>
+                                        <a href="{{ post.item_link }}" target="_blank"
+                                           class="btn btn-success btn-sm">
+                                            <i class="fas fa-shopping-cart me-1"></i>Buy Now
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Post Content -->
+                    <div class="post-content">
+                        <h5 class="fw-bold mb-3">Description</h5>
+                        <div class="text-muted" style="line-height: 1.7;">
+                            {{ post.content|replace('\n', '<br>')|safe }}
+                        </div>
+                    </div>
+
+                    <!-- Contact CTA -->
+                    <div class="mt-5 p-4 bg-light rounded">
+                        <h5 class="fw-bold mb-3">Interested in this {{ 'project' if post.post_type == 'portfolio' else 'item' }}?</h5>
+                        <p class="text-muted mb-3">
+                            Contact us for more information or to discuss your requirements.
+                        </p>
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            <a href="tel:+2349033150460" class="btn btn-primary">
+                                <i class="fas fa-phone me-2"></i>Call Now
+                            </a>
+                            <a href="https://wa.me/2349033150460?text=Hi! I'm interested in: {{ post.title }}"
+                               target="_blank" class="btn btn-success">
+                                <i class="fab fa-whatsapp me-2"></i>WhatsApp
+                            </a>
+                            <button class="btn btn-outline-primary" onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth'})">
+                                <i class="fas fa-envelope me-2"></i>Send Message
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Posts -->
+            <div class="mt-5">
+                <h4 class="fw-bold mb-4">More {{ 'Projects' if post.post_type == 'portfolio' else 'Items' }}</h4>
+                <div class="row g-3">
+                    <!-- This would be populated with related posts in a real implementation -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body text-center p-3">
+                                <i class="fas fa-tools text-primary fa-2x mb-2"></i>
+                                <h6 class="card-title">Coming Soon</h6>
+                                <p class="card-text small text-muted">More projects will be added soon.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Smooth scrolling for contact button
+document.querySelectorAll('[onclick*="scrollIntoView"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const target = document.getElementById('contact');
+        if (target) {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
