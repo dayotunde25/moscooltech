@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage News - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-tools me-2"></i>Admin Dashboard
+            </a>
+
+            <div class="d-flex">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-light me-2">
+                    <i class="fas fa-home me-1"></i>View Site
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-newspaper me-2"></i>Manage News Articles</h2>
+                <p class="text-muted mb-0">Create and manage industry news articles</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('admin_fetch_news_api') }}" class="btn btn-success">
+                    <i class="fas fa-cloud-download-alt me-2"></i>Fetch from API
+                </a>
+                <a href="{{ url_for('admin_cleanup_news') }}" class="btn btn-warning">
+                    <i class="fas fa-trash-alt me-2"></i>Cleanup Old
+                </a>
+                <a href="{{ url_for('admin_generate_news') }}" class="btn btn-info">
+                    <i class="fas fa-magic me-2"></i>Generate Mock
+                </a>
+                <a href="{{ url_for('admin_create_news') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Manual
+                </a>
+            </div>
+        </div>
+
+        <!-- News Articles List -->
+        {% if news_articles %}
+            <div class="row g-4">
+                {% for article in news_articles %}
+                    <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm">
+                            {% if article.image_url %}
+                                <div class="position-relative">
+                                    <img src="{{ article.image_url }}" alt="{{ article.title }}"
+                                         class="card-img-top" style="height: 200px; object-fit: cover;">
+                                </div>
+                            {% endif %}
+
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title fw-bold mb-0">{{ article.title }}</h6>
+                                    <small class="text-muted">{{ article.pub_date.strftime('%b %d, %Y') }}</small>
+                                </div>
+
+                                <p class="card-text text-muted small mb-2">{{ article.description[:150] }}...</p>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="badge bg-secondary">{{ article.source_id }}</span>
+                                    <a href="{{ article.link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i>View Article
+                                    </a>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('admin_edit_news', article_id=article.id) }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-outline-danger btn-sm delete-news-btn"
+                                            data-article-id="{{ article.id }}"
+                                            data-article-title="{{ article.title }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-newspaper fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No News Articles</h4>
+                    <p class="text-muted mb-4">Start by adding your first news article or generating mock news.</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{{ url_for('admin_generate_news') }}" class="btn btn-info">
+                            <i class="fas fa-magic me-2"></i>Generate Mock News
+                        </a>
+                        <a href="{{ url_for('admin_create_news') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Add News Article
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete "<span id="deleteArticleTitle"></span>"?</p>
+                    <p class="text-muted small">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <a id="confirmDeleteBtn" href="#" class="btn btn-danger">Delete</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.delete-news-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const articleId = this.getAttribute('data-article-id');
+                    const articleTitle = this.getAttribute('data-article-title');
+
+                    document.getElementById('deleteArticleTitle').textContent = articleTitle;
+                    document.getElementById('confirmDeleteBtn').href = '/admin/news/' + articleId + '/delete';
+
+                    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                    modal.show();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

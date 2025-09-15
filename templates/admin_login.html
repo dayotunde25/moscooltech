@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Moscool Technical Services</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-width: 400px;
+            width: 100%;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .login-body {
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="login-card">
+                    <div class="login-header">
+                        <i class="fas fa-lock fa-3x mb-3"></i>
+                        <h3 class="mb-0">Admin Login</h3>
+                        <p class="mb-0 opacity-75">Moscool Technical Services</p>
+                    </div>
+
+                    <div class="login-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="username" class="form-label fw-bold">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="username" name="username"
+                                           placeholder="Enter username" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="password" class="form-label fw-bold">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-lock"></i>
+                                    </span>
+                                    <input type="password" class="form-control" id="password" name="password"
+                                           placeholder="Enter password" required>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </button>
+                        </form>
+
+                        <div class="text-center mt-4">
+                            <a href="{{ url_for('home') }}" class="text-decoration-none">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Website
+                            </a>
+                        </div>
+
+                        <div class="alert alert-info mt-4 small" role="alert">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Demo Credentials:</strong><br>
+                            Username: admin<br>
+                            Password: ***REMOVED***
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
