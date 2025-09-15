@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Posts - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-tools me-2"></i>Admin Dashboard
+            </a>
+
+            <div class="d-flex">
+                <a href="{{ url_for('home') }}" class="btn btn-outline-light me-2">
+                    <i class="fas fa-home me-1"></i>View Site
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="fas fa-folder me-2"></i>Manage Posts</h2>
+                <p class="text-muted mb-0">Create and manage your portfolio and marketplace items</p>
+            </div>
+            <a href="{{ url_for('admin_create_post') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add New Post
+            </a>
+        </div>
+
+        <!-- Posts List -->
+        {% if posts %}
+            <div class="row g-4">
+                {% for post in posts %}
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            {% if post.image_url %}
+                                <div class="position-relative">
+                                    <img src="{{ post.image_url }}" alt="{{ post.title }}"
+                                         class="card-img-top" style="height: 200px; object-fit: cover;">
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-{{ 'primary' if post.post_type == 'portfolio' else 'success' }}">
+                                            {{ 'Portfolio' if post.post_type == 'portfolio' else 'For Sale' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <div class="card-body">
+                                <h5 class="card-title fw-bold">{{ post.title }}</h5>
+                                <p class="card-text text-muted small">{{ post.content[:150] }}...</p>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="badge bg-secondary">{{ post.category }}</span>
+                                    {% if post.post_type == 'sale' and post.price %}
+                                        <span class="text-success fw-bold">{{ post.currency }} {{ post.price }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>{{ post.created_at.strftime('%b %d, %Y') }}
+                                    </small>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin_edit_post', post_id=post.id) }}"
+                                           class="btn btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-outline-danger delete-btn"
+                                                data-post-id="{{ post.id }}"
+                                                data-post-title="{{ post.title }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <span class="badge bg-{{ 'success' if post.published else 'warning' }}">
+                                        {{ 'Published' if post.published else 'Draft' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Posts Yet</h4>
+                    <p class="text-muted mb-4">Create your first portfolio or marketplace post to get started.</p>
+                    <a href="{{ url_for('admin_create_post') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Your First Post
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete "<span id="deletePostTitle"></span>"?</p>
+                    <p class="text-muted small">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <a id="confirmDeleteBtn" href="#" class="btn btn-danger">Delete</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle delete button clicks
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const postId = this.getAttribute('data-post-id');
+                    const postTitle = this.getAttribute('data-post-title');
+
+                    document.getElementById('deletePostTitle').textContent = postTitle;
+                    document.getElementById('confirmDeleteBtn').href = '/admin/posts/' + postId + '/delete';
+
+                    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                    modal.show();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

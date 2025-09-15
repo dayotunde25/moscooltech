@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if article %}Edit News Article{% else %}Create News Article{% endif %} - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="{{ url_for('admin_dashboard') }}">
+                <i class="fas fa-tools me-2"></i>Admin Dashboard
+            </a>
+
+            <div class="d-flex">
+                <a href="{{ url_for('admin_news') }}" class="btn btn-outline-light me-2">
+                    <i class="fas fa-arrow-left me-1"></i>Back to News
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h3 class="mb-0">
+                            <i class="fas fa-{{ 'edit' if article else 'plus' }} me-2"></i>
+                            {% if article %}Edit News Article{% else %}Create News Article{% endif %}
+                        </h3>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <!-- Title -->
+                                <div class="col-12">
+                                    <label for="title" class="form-label fw-bold">Title *</label>
+                                    <input type="text" class="form-control" id="title" name="title"
+                                           value="{% if article %}{{ article.title }}{% endif %}" required>
+                                </div>
+
+                                <!-- Source -->
+                                <div class="col-md-6">
+                                    <label for="source_id" class="form-label fw-bold">Source</label>
+                                    <input type="text" class="form-control" id="source_id" name="source_id"
+                                           value="{% if article %}{{ article.source_id }}{% endif %}"
+                                           placeholder="e.g., Tech News Daily">
+                                </div>
+
+                                <!-- Publication Date -->
+                                <div class="col-md-6">
+                                    <label for="pub_date" class="form-label fw-bold">Publication Date</label>
+                                    <input type="datetime-local" class="form-control" id="pub_date" name="pub_date"
+                                           value="{% if article %}{{ article.pub_date.strftime('%Y-%m-%dT%H:%M') }}{% else %}{{ datetime.utcnow().strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                    <div class="form-text">Leave empty to use current date/time</div>
+                                </div>
+
+                                <!-- Link -->
+                                <div class="col-12">
+                                    <label for="link" class="form-label fw-bold">Article Link *</label>
+                                    <input type="url" class="form-control" id="link" name="link"
+                                           value="{% if article %}{{ article.link }}{% endif %}"
+                                           placeholder="https://example.com/article" required>
+                                </div>
+
+                                <!-- Image URL -->
+                                <div class="col-12">
+                                    <label for="image_url" class="form-label fw-bold">Image URL</label>
+                                    <input type="url" class="form-control" id="image_url" name="image_url"
+                                           value="{% if article %}{{ article.image_url }}{% endif %}"
+                                           placeholder="https://example.com/image.jpg">
+                                    <div class="form-text">Optional image for the news article</div>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="col-12">
+                                    <label for="description" class="form-label fw-bold">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="4"
+                                              placeholder="Brief description of the news article">{% if article %}{{ article.description }}{% endif %}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-white">
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('admin_news') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    {% if article %}Update Article{% else %}Create Article{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Preview Section -->
+                {% if article %}
+                    <div class="card border-0 shadow-sm mt-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="fas fa-eye me-2"></i>Article Preview</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% if article.image_url %}
+                                    <div class="col-md-4">
+                                        <img src="{{ article.image_url }}" alt="{{ article.title }}"
+                                             class="img-fluid rounded" style="max-height: 200px; object-fit: cover;">
+                                    </div>
+                                {% endif %}
+                                <div class="{% if article.image_url %}col-md-8{% else %}col-12{% endif %}">
+                                    <h6 class="fw-bold">{{ article.title }}</h6>
+                                    <p class="text-muted small mb-2">{{ article.description }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">{{ article.source_id }} • {{ article.pub_date.strftime('%B %d, %Y') }}</small>
+                                        <a href="{{ article.link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            Read More
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
