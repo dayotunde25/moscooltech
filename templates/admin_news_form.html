@@ -38,20 +38,21 @@
                         </h3>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {{ csrf_token() }}
                         <div class="card-body">
                             <div class="row g-3">
                                 <!-- Title -->
                                 <div class="col-12">
                                     <label for="title" class="form-label fw-bold">Title *</label>
-                                    <input type="text" class="form-control" id="title" name="title"
+                                    <input type="text" class="form-control" id="title" name="title" maxlength="300"
                                            value="{% if article %}{{ article.title }}{% endif %}" required>
                                 </div>
 
                                 <!-- Source -->
                                 <div class="col-md-6">
                                     <label for="source_id" class="form-label fw-bold">Source</label>
-                                    <input type="text" class="form-control" id="source_id" name="source_id"
+                                    <input type="text" class="form-control" id="source_id" name="source_id" maxlength="100"
                                            value="{% if article %}{{ article.source_id }}{% endif %}"
                                            placeholder="e.g., Tech News Daily">
                                 </div>
@@ -60,14 +61,14 @@
                                 <div class="col-md-6">
                                     <label for="pub_date" class="form-label fw-bold">Publication Date</label>
                                     <input type="datetime-local" class="form-control" id="pub_date" name="pub_date"
-                                           value="{% if article %}{{ article.pub_date.strftime('%Y-%m-%dT%H:%M') }}{% else %}{{ datetime.utcnow().strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                           value="{% if article %}{{ article.pub_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
                                     <div class="form-text">Leave empty to use current date/time</div>
                                 </div>
 
                                 <!-- Link -->
                                 <div class="col-12">
                                     <label for="link" class="form-label fw-bold">Article Link *</label>
-                                    <input type="url" class="form-control" id="link" name="link"
+                                    <input type="url" class="form-control" id="link" name="link" maxlength="500"
                                            value="{% if article %}{{ article.link }}{% endif %}"
                                            placeholder="https://example.com/article" required>
                                 </div>
@@ -75,7 +76,7 @@
                                 <!-- Image URL -->
                                 <div class="col-12">
                                     <label for="image_url" class="form-label fw-bold">Image URL</label>
-                                    <input type="url" class="form-control" id="image_url" name="image_url"
+                                    <input type="url" class="form-control" id="image_url" name="image_url" maxlength="500"
                                            value="{% if article %}{{ article.image_url }}{% endif %}"
                                            placeholder="https://example.com/image.jpg">
                                     <div class="form-text">Optional image for the news article</div>
@@ -84,7 +85,7 @@
                                 <!-- Description -->
                                 <div class="col-12">
                                     <label for="description" class="form-label fw-bold">Description</label>
-                                    <textarea class="form-control" id="description" name="description" rows="4"
+                                    <textarea class="form-control" id="description" name="description" rows="4" maxlength="2000"
                                               placeholder="Brief description of the news article">{% if article %}{{ article.description }}{% endif %}</textarea>
                                 </div>
                             </div>
@@ -123,7 +124,7 @@
                                     <p class="text-muted small mb-2">{{ article.description }}</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <small class="text-muted">{{ article.source_id }} • {{ article.pub_date.strftime('%B %d, %Y') }}</small>
-                                        <a href="{{ article.link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ article.link }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
                                             Read More
                                         </a>
                                     </div>

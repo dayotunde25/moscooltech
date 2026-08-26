@@ -38,20 +38,35 @@
                         </h3>
                     </div>
 
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {{ csrf_token() }}
                         <div class="card-body">
                             <div class="row g-3">
                                 <!-- Title -->
                                 <div class="col-12">
                                     <label for="title" class="form-label fw-bold">Title *</label>
-                                    <input type="text" class="form-control" id="title" name="title"
+                                    <input type="text" class="form-control" id="title" name="title" maxlength="200"
                                            value="{% if post %}{{ post.title }}{% endif %}" required>
+                                </div>
+
+                                <!-- Meta Description (SEO) -->
+                                <div class="col-12">
+                                    <label for="meta_description" class="form-label fw-bold">Meta Description (SEO)</label>
+                                    <textarea class="form-control" id="meta_description" name="meta_description" rows="2" maxlength="160" placeholder="Brief description for search engines (max 160 chars)">{% if post %}{{ post.meta_description }}{% endif %}</textarea>
+                                    <div class="form-text">Recommended: 150-160 characters</div>
+                                </div>
+
+                                <!-- Image Alt Text (SEO) -->
+                                <div class="col-12">
+                                    <label for="image_alt" class="form-label fw-bold">Image Alt Text (Accessibility & SEO)</label>
+                                    <input type="text" class="form-control" id="image_alt" name="image_alt" maxlength="200"
+                                           value="{% if post %}{{ post.image_alt }}{% endif %}" placeholder="Describe the image for accessibility">
                                 </div>
 
                                 <!-- Category -->
                                 <div class="col-md-6">
                                     <label for="category" class="form-label fw-bold">Category</label>
-                                    <input type="text" class="form-control" id="category" name="category"
+                                    <input type="text" class="form-control" id="category" name="category" maxlength="100"
                                            value="{% if post %}{{ post.category }}{% endif %}"
                                            placeholder="e.g., Web Development, Mobile App, etc.">
                                 </div>
@@ -72,7 +87,7 @@
                                 <!-- Image URL -->
                                 <div class="col-12">
                                     <label for="image_url" class="form-label fw-bold">Image URL</label>
-                                    <input type="url" class="form-control" id="image_url" name="image_url"
+                                    <input type="url" class="form-control" id="image_url" name="image_url" maxlength="500"
                                             value="{% if post %}{{ post.image_url }}{% endif %}"
                                             placeholder="https://example.com/image.jpg">
                                     <div class="form-text">Enter a URL for the post image or upload a file below</div>
@@ -82,14 +97,14 @@
                                 <div class="col-12">
                                     <label for="image_file" class="form-label fw-bold">Upload Image File</label>
                                     <input type="file" class="form-control" id="image_file" name="image_file"
-                                            accept="image/*">
+                                            accept="image/png,image/jpeg,image/gif">
                                     <div class="form-text">Upload JPG, PNG, GIF files (max 16MB)</div>
                                 </div>
 
                                 <!-- Video URL -->
                                 <div class="col-12">
                                     <label for="video_url" class="form-label fw-bold">Video URL</label>
-                                    <input type="url" class="form-control" id="video_url" name="video_url"
+                                    <input type="url" class="form-control" id="video_url" name="video_url" maxlength="500"
                                             value="{% if post %}{{ post.video_url }}{% endif %}"
                                             placeholder="https://example.com/video.mp4">
                                     <div class="form-text">Enter a URL for the post video or upload a file below</div>
@@ -99,7 +114,7 @@
                                 <div class="col-12">
                                     <label for="video_file" class="form-label fw-bold">Upload Video File</label>
                                     <input type="file" class="form-control" id="video_file" name="video_file"
-                                            accept="video/*">
+                                            accept="video/mp4,video/x-msvideo,video/quicktime,video/x-ms-wmv">
                                     <div class="form-text">Upload MP4, AVI, MOV, WMV files (max 16MB)</div>
                                 </div>
 
@@ -137,7 +152,7 @@
                                 <!-- Item Link (for sale items) -->
                                 <div class="col-12 item-link-group" style="display: none;">
                                     <label for="item_link" class="form-label fw-bold">Item Link</label>
-                                    <input type="url" class="form-control" id="item_link" name="item_link"
+                                    <input type="url" class="form-control" id="item_link" name="item_link" maxlength="500"
                                            value="{% if post %}{{ post.item_link }}{% endif %}"
                                            placeholder="https://example.com/buy-item">
                                     <div class="form-text">Optional external link where buyers can purchase the item</div>
@@ -205,10 +220,7 @@
                 });
             }
 
-            // Set initial state
             toggleFields();
-
-            // Handle changes
             postTypeSelect.addEventListener('change', toggleFields);
         });
     </script>
