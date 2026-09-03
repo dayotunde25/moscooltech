@@ -1,2 +1,2 @@
 # Development / test-only dependencies (NOT installed on Render in production)
-pytest==8.3.5
+pytest==9.0.3
