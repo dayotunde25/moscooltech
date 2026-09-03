@@ -20,9 +20,12 @@
                 <a href="{{ url_for('home') }}" class="btn btn-outline-light me-2">
                     <i class="fas fa-home me-1"></i>View Site
                 </a>
-                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
+                <form method="POST" action="{{ url_for('admin_logout') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-light">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </button>
+                </form>
             </div>
         </div>
     </nav>
@@ -121,26 +124,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.mark-reviewed-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const feedbackId = this.getAttribute('data-feedback-id');
-
-                    // In a real application, you would send an AJAX request to mark the feedback as reviewed
-                    // For now, we'll just show a success message
-                    const modal = new bootstrap.Modal(document.getElementById('successModal'));
-                    modal.show();
-
-                    // You could also update the UI to show the feedback as reviewed
-                    // For example, add a "Reviewed" badge or change the styling
-                    this.innerHTML = '<i class="fas fa-check-circle me-1"></i>Reviewed';
-                    this.classList.remove('btn-success');
-                    this.classList.add('btn-secondary');
-                    this.disabled = true;
-                });
-            });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>

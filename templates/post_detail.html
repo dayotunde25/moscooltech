@@ -1,9 +1,38 @@
 {% extends "base.html" %}
 
 {% block title %}{{ post.title }} - Moscool Technical Services{% endblock %}
+{% block meta_description %}<meta name="description" content="{{ post.meta_description or post.content[:155] }}">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ post.get_canonical_url() }}">{% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.meta_description or post.content[:155] }}{% endblock %}
+{% block og_image %}{% if post.image_url %}<meta property="og:image" content="{{ post.image_url if post.image_url.startswith('http') else request.url_root ~ post.image_url.lstrip('/') }}">{% endif %}{% endblock %}
+{% block json_ld %}
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ post.title|tojson }},
+  "description": {{ (post.meta_description or post.content[:155])|tojson }},
+  "datePublished": "{{ post.created_at.isoformat() if post.created_at else '' }}",
+  "dateModified": "{{ post.updated_at.isoformat() if post.updated_at else '' }}",
+  "mainEntityOfPage": {{ post.get_canonical_url()|tojson }}
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4 py-5">
+    <!-- Breadcrumbs (SEO) -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-decoration-none">Home</a></li>
+            {% if post.post_type == 'sale' %}
+                <li class="breadcrumb-item"><a href="{{ url_for('marketplace') }}" class="text-decoration-none">Marketplace</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ post.title[:60] }}</li>
+        </ol>
+    </nav>
+
     <!-- Back Button -->
     <div class="mb-4">
         <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
@@ -16,17 +45,16 @@
             <div class="card border-0 shadow-custom">
                 <!-- Post Image/Video -->
                 {% if post.image_url or post.video_url %}
-                    <div class="card-img-top p-0">
-                        {% if post.video_url %}
+                    <div class="card-img-top p-0">                                {% if post.video_url %}
                             <video controls class="w-100" style="max-height: 400px;">
                                 <source src="{{ post.video_url }}" type="video/mp4">
                                 {% if post.image_url %}
-                                    <img src="{{ post.image_url }}" alt="{{ post.title }}" class="w-100" style="max-height: 400px; object-fit: cover;">
+                                    <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}" class="w-100" style="max-height: 400px; object-fit: cover;">
                                 {% endif %}
                                 Your browser does not support the video tag.
                             </video>
                         {% elif post.image_url %}
-                            <img src="{{ post.image_url }}" alt="{{ post.title }}"
+                            <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}"
                                  class="w-100" style="max-height: 400px; object-fit: cover;">
                         {% endif %}
                     </div>
@@ -75,7 +103,7 @@
                                 </div>
                                 {% if post.item_link %}
                                     <div>
-                                        <a href="{{ post.item_link }}" target="_blank"
+                                        <a href="{{ post.item_link }}" target="_blank" rel="noopener noreferrer"
                                            class="btn btn-success btn-sm">
                                             <i class="fas fa-shopping-cart me-1"></i>Buy Now
                                         </a>
@@ -89,7 +117,7 @@
                     <div class="post-content">
                         <h5 class="fw-bold mb-3">Description</h5>
                         <div class="text-muted" style="line-height: 1.7;">
-                            {{ post.content|replace('\n', '<br>')|safe }}
+                            {{ post.content|nl2br }}
                         </div>
                     </div>
 
@@ -104,12 +132,12 @@
                                 <i class="fas fa-phone me-2"></i>Call Now
                             </a>
                             <a href="https://wa.me/2349033150460?text=Hi! I'm interested in: {{ post.title }}"
-                               target="_blank" class="btn btn-success">
+                               target="_blank" rel="noopener noreferrer" class="btn btn-success">
                                 <i class="fab fa-whatsapp me-2"></i>WhatsApp
                             </a>
-                            <button class="btn btn-outline-primary" onclick="document.getElementById('contact').scrollIntoView({behavior: 'smooth'})">
+                            <a href="{{ url_for('home') }}#contact" class="btn btn-outline-primary">
                                 <i class="fas fa-envelope me-2"></i>Send Message
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -134,21 +162,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-// Smooth scrolling for contact button
-document.querySelectorAll('[onclick*="scrollIntoView"]').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const target = document.getElementById('contact');
-        if (target) {
-            target.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        }
-    });
-});
-</script>
 {% endblock %}

@@ -20,9 +20,12 @@
                 <a href="{{ url_for('home') }}" class="btn btn-outline-light me-2">
                     <i class="fas fa-home me-1"></i>View Site
                 </a>
-                <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-light">
-                    <i class="fas fa-sign-out-alt me-1"></i>Logout
-                </a>
+                <form method="POST" action="{{ url_for('admin_logout') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-light">
+                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                    </button>
+                </form>
             </div>
         </div>
     </nav>
@@ -34,16 +37,26 @@
                 <h2 class="mb-1"><i class="fas fa-newspaper me-2"></i>Manage News Articles</h2>
                 <p class="text-muted mb-0">Create and manage industry news articles</p>
             </div>
-            <div class="d-flex gap-2">
-                <a href="{{ url_for('admin_fetch_news_api') }}" class="btn btn-success">
-                    <i class="fas fa-cloud-download-alt me-2"></i>Fetch from API
-                </a>
-                <a href="{{ url_for('admin_cleanup_news') }}" class="btn btn-warning">
-                    <i class="fas fa-trash-alt me-2"></i>Cleanup Old
-                </a>
-                <a href="{{ url_for('admin_generate_news') }}" class="btn btn-info">
-                    <i class="fas fa-magic me-2"></i>Generate Mock
-                </a>
+            <div class="d-flex flex-wrap gap-2">
+                <form method="POST" action="{{ url_for('admin_fetch_news_api') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-cloud-download-alt me-2"></i>Fetch from API
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_cleanup_news') }}" class="d-inline js-confirm"
+                      data-confirm-message="Delete news articles older than 30 days?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-trash-alt me-2"></i>Cleanup Old
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_generate_news') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-magic me-2"></i>Generate Mock
+                    </button>
+                </form>
                 <a href="{{ url_for('admin_create_news') }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Add Manual
                 </a>
@@ -73,7 +86,7 @@
 
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <span class="badge bg-secondary">{{ article.source_id }}</span>
-                                    <a href="{{ article.link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ article.link }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-external-link-alt me-1"></i>View Article
                                     </a>
                                 </div>
@@ -101,9 +114,12 @@
                     <h4 class="text-muted">No News Articles</h4>
                     <p class="text-muted mb-4">Start by adding your first news article or generating mock news.</p>
                     <div class="d-flex justify-content-center gap-2">
-                        <a href="{{ url_for('admin_generate_news') }}" class="btn btn-info">
-                            <i class="fas fa-magic me-2"></i>Generate Mock News
-                        </a>
+                        <form method="POST" action="{{ url_for('admin_generate_news') }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-magic me-2"></i>Generate Mock News
+                            </button>
+                        </form>
                         <a href="{{ url_for('admin_create_news') }}" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Add News Article
                         </a>
@@ -113,42 +129,30 @@
         {% endif %}
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
+    <!-- Delete Confirmation Modal (POST + CSRF protected) -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to delete "<span id="deleteArticleTitle"></span>"?</p>
-                    <p class="text-muted small">This action cannot be undone.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <a id="confirmDeleteBtn" href="#" class="btn btn-danger">Delete</a>
-                </div>
+                <form id="deleteNewsForm" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete "<span id="deleteArticleTitle"></span>"?</p>
+                        <p class="text-muted small">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.delete-news-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const articleId = this.getAttribute('data-article-id');
-                    const articleTitle = this.getAttribute('data-article-title');
-
-                    document.getElementById('deleteArticleTitle').textContent = articleTitle;
-                    document.getElementById('confirmDeleteBtn').href = '/admin/news/' + articleId + '/delete';
-
-                    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
-                    modal.show();
-                });
-            });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,33 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec)
+# Deploy this app with:  New -> Blueprint  (point it at this repository)
+services:
+  - type: web
+    name: moscooltech
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@moscooltech.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: moscooltech-db
+          property: connectionString
+      - key: ENABLE_SCHEDULER
+        value: "false"
+      - key: NEWSDATA_API_KEY
+        sync: false
+
+databases:
+  - name: moscooltech-db
+    plan: free
+    databaseName: moscooltech
+    user: moscooltech

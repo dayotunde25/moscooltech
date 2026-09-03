@@ -19,9 +19,16 @@ DATABASE_URL=<Render will provide if using PostgreSQL>
 ADMIN_EMAIL=admin@moscooltech.com
 
 # === OPTIONAL ===
+SITE_URL=https://your-custom-domain.com   # fixed domain for robots/sitemap/OG tags
 NEWSDATA_API_KEY=<get-from-newsdata.io>
+ENABLE_SCHEDULER=true                     # daily news fetch (python app.py only)
 PORT=10000  # Render sets this automatically
 ```
+
+> 💡 **Blueprint deployment**: this repo includes `render.yaml`. Use
+> **New → Blueprint** and Render creates the web service *and* a free
+> PostgreSQL database for you, generating `SECRET_KEY` and `ADMIN_PASSWORD`
+> automatically (reveal them afterwards under **Environment**).
 
 ### Step 2: Generate SECRET_KEY
 
@@ -44,8 +51,11 @@ Copy the output and paste into Render environment as `SECRET_KEY`.
 
 1. Visit `https://your-app.onrender.com/admin/login`
 2. Username: `admin`
-3. Password: Value you set in `ADMIN_PASSWORD`
-4. **IMMEDIATELY**: Change password in admin settings
+3. Password: the value you set in `ADMIN_PASSWORD` (the account is created once, on first boot — set a strong value *before* deploying; there is no default password)
+
+> 🔐 If the app started without `ADMIN_PASSWORD`, no admin account was created.
+> Set the variable and **restart** the service — or delete the admin row from the
+> database — then redeploy.
 
 ---
 
@@ -59,6 +69,8 @@ Copy the output and paste into Render environment as `SECRET_KEY`.
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://...` | ✅ YES (if using DB) |
 | `ADMIN_EMAIL` | Admin account email | `admin@example.com` | ⚠️ Optional |
 | `NEWSDATA_API_KEY` | News API integration | `abc123def456` | ⚠️ Optional |
+| `SITE_URL` | Fixed domain for sitemap/robots/OG tags | `https://moscooltech.com` | ⚠️ Optional (falls back to request host) |
+| `ENABLE_SCHEDULER` | Daily news fetch/cleanup | `true` | ⚠️ Optional (`python app.py` only) |
 | `PORT` | Server port | `10000` | Auto-set by Render |
 
 ---
@@ -67,10 +79,11 @@ Copy the output and paste into Render environment as `SECRET_KEY`.
 
 ### Immediate Actions (Day 1)
 
-1. **Change Admin Password**
-   - Login to `/admin/login`
-   - User profile → Change password
-   - Use a strong, unique password
+1. **Confirm the admin account**
+   - Login to `/admin/login` with the `ADMIN_PASSWORD` you set
+   - There is no change-password page — if you need to rotate it, update
+     `ADMIN_PASSWORD` in Render and delete the existing `admin` row from the
+     database (it will be recreated with the new password on next boot)
 
 2. **Verify HTTPS**
    - Check URL bar for 🔒 lock icon
@@ -173,9 +186,28 @@ Copy the output and paste into Render environment as `SECRET_KEY`.
 
 **Solution** (if needed, modify `app.py`):
 ```python
-check_login_rate_limit(client_ip, max_attempts=10, window_seconds=1800)
-# Increases to 10 attempts per 30 minutes
+is_login_rate_limited(client_ip, max_attempts=10, window_seconds=1800)
+# Increases to 10 failed attempts per 30 minutes
 ```
+
+Note: only **failed** attempts count (the counter resets on a successful login).
+The counter is in-memory per process — with multiple gunicorn workers each
+keeps its own counter.
+
+### News scheduler never runs on Render
+
+**Problem**: News is not auto-fetched daily on Render
+
+**Solution**: The background scheduler intentionally starts only when the app is
+run with `python app.py` (single process). Under gunicorn (the `Procfile` start
+command) it is disabled to avoid duplicate jobs across workers. Either:
+- Click **Fetch News** in Admin → News to fetch on demand, or
+- Run a dedicated one-off worker (e.g. Render Cron Job) calling the admin fetch,
+  or
+- Add `web: python app.py` as the start command for a small single-instance
+  service if scheduled fetching matters more than multi-worker scaling.
+
+Set `ENABLE_SCHEDULER=false` to disable it even under `python app.py`.
 
 ---
 

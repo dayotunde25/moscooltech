@@ -4,24 +4,29 @@ A modern, responsive website for a technical services company offering AC repair
 
 ## 🚀 Technologies Used
 
-- **Backend**: Python Flask 2.3.3
-- **Database**: SQLite with SQLAlchemy
+- **Backend**: Python Flask 3.1 + Gunicorn
+- **Database**: SQLAlchemy (SQLite for development, PostgreSQL on Render)
 - **Authentication**: Flask-Login
+- **Security**: Flask-WTF CSRF protection, Werkzeug password hashing, strict CSP & security headers
 - **Frontend**: Bootstrap 5.3.0, Jinja2 templates
 - **Icons**: Font Awesome 6.4.0
 
 ## 📁 Project Structure
 
 ```
-moscool-tech-flask/
+moscooltech/
 ├── app.py                      # Main Flask application
-├── sample_data.py              # Script to populate sample data
 ├── requirements.txt            # Python dependencies
+├── Procfile                    # Render start command (gunicorn app:app)
+├── render.yaml                 # Render Blueprint (web service + PostgreSQL)
+├── .env.example                # Environment variable template (never commit .env)
 ├── .gitignore                  # Git ignore rules
 ├── templates/                  # Jinja2 templates
-│   ├── base.html              # Base template with header/footer
-│   ├── home.html              # Home page with all sections
+│   ├── base.html              # Base template with header/footer + SEO/social meta
+│   ├── home.html              # Home page with all sections + LocalBusiness schema
 │   ├── post_detail.html       # Individual post/portfolio item page
+│   ├── marketplace.html       # Items-for-sale listing
+│   ├── error.html             # Custom 400/403/404/500 pages
 │   ├── admin_login.html       # Admin login page
 │   ├── admin_dashboard.html   # Admin dashboard
 │   ├── admin_posts.html       # Post management
@@ -31,10 +36,10 @@ moscool-tech-flask/
 │   ├── admin_contacts.html    # Contact submissions management
 │   └── admin_feedbacks.html   # Feedback submissions management
 └── static/                    # Static files
-    ├── css/
-    │   └── style.css         # Custom styles
-    ├── js/                   # JavaScript files (if needed)
-    └── images/               # Image assets
+    ├── css/style.css          # Custom styles
+    ├── js/main.js             # Public-site JavaScript (external, CSP-safe)
+    ├── js/admin.js            # Admin JavaScript (external, CSP-safe)
+    └── img/og-image.png       # Default social-share (Open Graph) image
 ```
 
 ## 🛠️ Installation & Setup
@@ -65,15 +70,26 @@ moscool-tech-flask/
    pip install -r requirements.txt
    ```
 
-4. **Run the application**
+4. **Create your local `.env`** (copy `.env.example`) and set:
+   ```env
+   FLASK_ENV=development
+   SECRET_KEY=anything-local   # required only in production
+   ADMIN_PASSWORD=something-strong
+   ```
+
+5. **Run the application**
    ```bash
    python app.py
    ```
 
-5. **Access the application**
+6. **Access the application**
    - Open your browser and go to: http://127.0.0.1:5000
    - Admin login: http://127.0.0.1:5000/admin/login
-   - Default admin credentials: `admin` / `***REMOVED***`
+   - Username: `admin` — password: the value of `ADMIN_PASSWORD` (set on first boot)
+
+   > ⚠️ There is **no default password**. The `admin` account is created once,
+   > with the password taken from the `ADMIN_PASSWORD` environment variable.
+   > If it isn't set in development, a random one is printed to the console.
 
 ## 🌐 Features
 
@@ -138,40 +154,46 @@ You can also manually:
 
 ### Environment Variables
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env` and fill in the values. The most important keys:
 
-```env
-FLASK_APP=app.py
-FLASK_ENV=development
-SECRET_KEY=***REMOVED***
+| Variable | Purpose |
+|----------|---------|
+| `SECRET_KEY` | Session signing key — **required** in production (32+ random bytes) |
+| `ADMIN_PASSWORD` | Password for the auto-created `admin` account (first boot only) |
+| `FLASK_ENV` | `development` locally; `production` on Render |
+| `DATABASE_URL` | PostgreSQL URL on Render; `sqlite:///...` locally (`postgres://` is auto-normalized) |
+| `SITE_URL` | Optional fixed domain used by `robots.txt`/`sitemap.xml`/social tags |
+| `NEWSDATA_API_KEY` | Optional NewsData.io key for automatic news fetching |
 
-# NewsData.io API Configuration
-# Get your free API key from: https://newsdata.io/
-NEWSDATA_API_KEY=your-newsdata-api-key-here
-```
+See `.env.example` for the full list with comments.
 
 ### Admin User
 
-Default admin user is created automatically:
-- **Username**: admin
-- **Password**: ***REMOVED***
-
-**⚠️ Important**: Change the default password in production!
+The `admin` user is created automatically the first time the app boots against an
+empty database. Its password is **not** hardcoded — it comes from the
+`ADMIN_PASSWORD` environment variable (a random password is generated and logged
+if it is unset in development). In production the app refuses to start without a
+`SECRET_KEY`, and no admin account is created without `ADMIN_PASSWORD`.
 
 ## 🚀 Deployment
 
-### Production Deployment
+### Production Deployment (Render)
 
-1. Set `FLASK_ENV=production` in your environment
-2. Use a production WSGI server like Gunicorn:
-   ```bash
-   pip install gunicorn
-   gunicorn -w 4 app:app
-   ```
+The repository ships with a `Procfile` (`gunicorn app:app`) and a `render.yaml`
+Render Blueprint. The easiest path:
 
-3. Use a reverse proxy like Nginx
-4. Set up proper database (PostgreSQL recommended for production)
-5. Configure environment variables securely
+1. Push this repository to GitHub
+2. On Render: **New → Blueprint** and select the repository
+3. Render provisions the web service **and** a PostgreSQL database automatically
+4. Set `FLASK_ENV=production`, a strong `SECRET_KEY` and `ADMIN_PASSWORD` (Blueprint generates `SECRET_KEY`/`ADMIN_PASSWORD` for you — reveal them in the dashboard **Environment** tab after creation)
+
+Manual alternative: create a Web Service, set the env vars above, and let
+Render use the `Procfile` start command.
+
+> ℹ️ The daily news scheduler only runs when started with `python app.py` (one
+> process). Under gunicorn it stays off to avoid duplicate jobs across workers —
+> fetch news on demand from the admin panel, or set `ENABLE_SCHEDULER=false`
+> and run the app with a single worker if you need scheduled fetches.
 
 ### Docker Deployment
 
@@ -185,7 +207,7 @@ RUN pip install -r requirements.txt
 COPY . .
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "app:app"]
 ```
 
 ## 🤝 Usage

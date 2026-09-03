@@ -1,43 +1,74 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, make_response, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from werkzeug.urls import url_parse
-from datetime import datetime, timedelta
+from werkzeug.urls import urlsplit
+from werkzeug.middleware.proxy_fix import ProxyFix
+from markupsafe import Markup, escape
+from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from functools import wraps
 import requests
 import os
+import secrets
+import sys
 import uuid
 from dateutil import parser as date_parser
 import re
 import logging
 
 # Security: Configure logging
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Security: Load secret key from environment variables
+# Security: Trust Render's reverse proxy so request.remote_addr and scheme are correct
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# ---------------------------------------------------------------------------
+# Environment / deployment mode
+# Render always sets RENDER=true; treat that as production unless explicitly
+# opted into development via FLASK_ENV.
+# ---------------------------------------------------------------------------
+FLASK_ENV = os.getenv('FLASK_ENV', '').strip().lower()
+IS_DEVELOPMENT = FLASK_ENV == 'development' or os.getenv('FLASK_DEBUG', '').lower() in ('1', 'true')
+IS_PRODUCTION = not IS_DEVELOPMENT
+
+# Security: Debug mode must NEVER be enabled in production
+app.config['DEBUG'] = IS_DEVELOPMENT
+
+# Security: Load secret key from environment (REQUIRED in production)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 if not app.config['SECRET_KEY']:
-    logger.critical("SECRET_KEY not configured. Set the SECRET_KEY environment variable.")
-    raise ValueError("SECRET_KEY environment variable must be set")
+    if IS_PRODUCTION:
+        logger.critical("SECRET_KEY not configured. Set the SECRET_KEY environment variable in Render -> Environment.")
+        raise RuntimeError("SECRET_KEY environment variable must be set in production")
+    # Development convenience: generate an ephemeral key (sessions reset per restart)
+    app.config['SECRET_KEY'] = secrets.token_hex(32)
+    logger.warning("SECRET_KEY not set - using an ephemeral development key. Set SECRET_KEY in production.")
 
-# Security: Enforce HTTPS in production
-app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') == 'production'
+# Security: Session cookie flags
+# SECURE: only sent over HTTPS. Render terminates TLS, so enable outside local dev.
+app.config['SESSION_COOKIE_SECURE'] = not IS_DEVELOPMENT
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
 
-# Security: Disable debug mode in production
-app.config['DEBUG'] = os.getenv('FLASK_ENV') != 'production'
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///moscool_tech.db')
+# SQLAlchemy configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///moscool_tech.db')
+# Render provides postgres:// URLs; SQLAlchemy 2.x requires postgresql:// scheme
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = 'postgresql://' + DATABASE_URL[len('postgres://'):]
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
+
+# Security: CSRF protection with sensible time limit
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
@@ -63,32 +94,32 @@ login_manager.init_app(app)
 login_manager.login_view = 'admin_login'
 login_manager.login_message = 'Please log in to access this page.'
 
-# Security: Rate limiting for login attempts
+# Security: Rate limiting for login attempts (per IP, in-memory)
 login_attempts = {}
 
 def get_client_ip():
-    """Get client IP address safely"""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
+    """Get client IP address. ProxyFix makes request.remote_addr trustworthy."""
+    return request.remote_addr or 'unknown'
 
-def check_login_rate_limit(ip_address, max_attempts=5, window_seconds=900):
-    """Check if IP has exceeded login attempts"""
-    now = datetime.utcnow()
-    if ip_address not in login_attempts:
-        login_attempts[ip_address] = []
+def is_login_rate_limited(ip_address, max_attempts=5, window_seconds=900):
+    """Check if IP has exceeded the allowed number of recent failed attempts"""
+    now = datetime.now(timezone.utc)
+    attempts = login_attempts.get(ip_address, [])
     
-    # Remove old attempts outside the window
-    login_attempts[ip_address] = [
-        attempt_time for attempt_time in login_attempts[ip_address]
-        if (now - attempt_time).total_seconds() < window_seconds
-    ]
+    # Keep only attempts inside the window
+    active = [t for t in attempts if (now - t).total_seconds() < window_seconds]
+    login_attempts[ip_address] = active
     
-    if len(login_attempts[ip_address]) >= max_attempts:
-        return False
-    
-    login_attempts[ip_address].append(now)
-    return True
+    return len(active) >= max_attempts
+
+def record_login_failure(ip_address):
+    """Record one failed login attempt for an IP"""
+    now = datetime.now(timezone.utc)
+    login_attempts.setdefault(ip_address, []).append(now)
+
+def clear_login_rate_limit(ip_address):
+    """Reset failed-attempt counter after a successful login"""
+    login_attempts.pop(ip_address, None)
 
 def require_admin(f):
     """Decorator to require admin authorization"""
@@ -96,6 +127,7 @@ def require_admin(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if not current_user.is_admin:
+            logger.warning(f"Non-admin user {current_user.username} attempted to access admin page")
             flash('You do not have permission to access this page.', 'error')
             return redirect(url_for('home'))
         return f(*args, **kwargs)
@@ -174,11 +206,23 @@ def allowed_file(filename):
     ext = filename.rsplit('.', 1)[1].lower()
     return ext in ALLOWED_EXTENSIONS
 
+# Map allowed extensions to their expected MIME types (from magic bytes)
+EXTENSION_MIME_MAP = {
+    'png': 'image/png',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'gif': 'image/gif',
+    'mp4': 'video/mp4',
+    'mov': 'video/quicktime',
+    'avi': 'video/x-msvideo',
+    'wmv': 'video/x-ms-wmv',
+}
+
 def validate_mime_type(file_stream):
-    """Validate file MIME type"""
+    """Detect file MIME type from magic bytes (read more for video containers)"""
     try:
         file_stream.seek(0)
-        magic_bytes = file_stream.read(12)
+        magic_bytes = file_stream.read(32)
         file_stream.seek(0)
         
         if magic_bytes.startswith(b'\x89PNG'):
@@ -187,18 +231,31 @@ def validate_mime_type(file_stream):
             return 'image/jpeg'
         elif magic_bytes.startswith(b'GIF8'):
             return 'image/gif'
-        elif b'ftyp' in magic_bytes[:12]:
+        # ISO BMFF containers: MP4 / QuickTime (brand inside 'ftyp' box)
+        elif b'ftyp' in magic_bytes[:16]:
+            brand = magic_bytes[8:16]
+            if b'qt' in brand:
+                return 'video/quicktime'
             return 'video/mp4'
+        # AVI: RIFF....AVI 
+        elif magic_bytes.startswith(b'RIFF') and b'AVI ' in magic_bytes[:16]:
+            return 'video/x-msvideo'
+        # ASF (WMV): 30 26 B2 75 8E 66 CF 11 ...
+        elif magic_bytes.startswith(bytes.fromhex('3026b2758e66cf11')):
+            return 'video/x-ms-wmv'
         return None
-    except:
+    except Exception:
         return None
 
 def save_uploaded_file(file, subfolder=''):
-    """Save uploaded file and return the file path"""
+    """Save uploaded file and return the file path. Rejects mismatched or unverifiable files."""
     if not file or not allowed_file(file.filename):
         logger.warning(f"Invalid file upload attempt: {file.filename if file else 'No file'}")
         return None
     
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    expected_mime = EXTENSION_MIME_MAP.get(ext)
+
     file.seek(0, os.SEEK_END)
     file_size = file.tell()
     file.seek(0)
@@ -207,9 +264,10 @@ def save_uploaded_file(file, subfolder=''):
         logger.warning(f"File too large: {file_size} bytes")
         return None
     
-    mime_type = validate_mime_type(file)
-    if mime_type and mime_type not in ALLOWED_MIME_TYPES:
-        logger.warning(f"Invalid MIME type: {mime_type}")
+    detected_mime = validate_mime_type(file)
+    # Security: the magic bytes MUST match the extension. Unknown content is rejected.
+    if not detected_mime or detected_mime not in ALLOWED_MIME_TYPES or detected_mime != expected_mime:
+        logger.warning(f"MIME mismatch for {file.filename}: detected={detected_mime}, expected={expected_mime}")
         return None
     
     try:
@@ -230,13 +288,26 @@ def save_uploaded_file(file, subfolder=''):
         return None
 
 def sanitize_input(text, max_length=None):
-    """Sanitize user input"""
+    """Sanitize user input (strip null bytes, enforce max length)"""
     if not isinstance(text, str):
         return ''
-    text = text.replace('\x00', '')
+    text = text.replace('\x00', '').strip()
     if max_length:
         text = text[:max_length]
     return text
+
+@app.template_filter('nl2br')
+def nl2br_filter(value):
+    """Escape content and convert newlines to <br> tags (safe alternative to |safe)"""
+    # Escape first, then insert <br> on the plain string and re-mark as safe:
+    # Markup.replace() would HTML-escape the '<br>' replacement.
+    escaped = str(escape(value or ''))
+    return Markup(escaped.replace('\r\n', '\n').replace('\n', '<br>\n'))
+
+# Security: per-request nonce so inline JSON-LD is allowed without 'unsafe-inline'
+@app.before_request
+def set_csp_nonce():
+    g.csp_nonce = secrets.token_urlsafe(16)
 
 # Security: Add security headers to all responses
 @app.after_request
@@ -246,10 +317,12 @@ def set_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
     
+    nonce = getattr(g, 'csp_nonce', '')
     csp = (
         "default-src 'self'; "
-        "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com; "
+        f"script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'nonce-{nonce}'; "
         "style-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'unsafe-inline'; "
         "img-src 'self' data: https: unsplash.com images.unsplash.com; "
         "font-src 'self' cdnjs.cloudflare.com; "
@@ -260,8 +333,13 @@ def set_security_headers(response):
     )
     response.headers['Content-Security-Policy'] = csp
     
-    if app.config['DEBUG'] == False:
+    if not app.config['DEBUG']:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    # Don't cache pages that include user data or admin functionality
+    if request.endpoint and (request.endpoint.startswith('admin') or request.endpoint in ('submit_contact', 'submit_feedback', 'admin_login')):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
     
     return response
 
@@ -304,6 +382,11 @@ def home():
 
 @app.route('/contact', methods=['POST'])
 def submit_contact():
+    # Honeypot: bots fill hidden fields - silently ignore them
+    if request.form.get('company_website'):
+        logger.info("Contact form honeypot triggered - submission ignored")
+        return redirect(url_for('home') + '#contact')
+
     name = sanitize_input(request.form.get('name', ''), 100)
     email = sanitize_input(request.form.get('email', ''), 150)
     phone = sanitize_input(request.form.get('phone', ''), 20)
@@ -340,6 +423,11 @@ def submit_contact():
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
+    # Honeypot: bots fill hidden fields - silently ignore them
+    if request.form.get('company_website'):
+        logger.info("Feedback form honeypot triggered - submission ignored")
+        return redirect(url_for('home') + '#feedback')
+
     name = sanitize_input(request.form.get('name', ''), 100)
     email = sanitize_input(request.form.get('email', ''), 150)
     subject = sanitize_input(request.form.get('subject', ''), 200)
@@ -384,8 +472,9 @@ def marketplace():
 
 @app.route('/robots.txt')
 def robots():
-    """SEO: Robots.txt for search engine crawling"""
-    response = make_response("""User-agent: *
+    """SEO: Robots.txt for search engine crawling (domain-aware)"""
+    base_url = os.getenv('SITE_URL', request.url_root).rstrip('/')
+    response = make_response(f"""User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /admin/*
@@ -394,28 +483,29 @@ Allow: /static/
 Allow: /post/
 Allow: /marketplace/
 
-Sitemap: https://moscooltech.onrender.com/sitemap.xml
+Sitemap: {base_url}/sitemap.xml
 """)
     response.headers['Content-Type'] = 'text/plain'
     return response
 
 @app.route('/sitemap.xml')
 def sitemap():
-    """SEO: XML sitemap for search engines"""
+    """SEO: XML sitemap for search engines (domain-aware)"""
     try:
         posts = Post.query.filter_by(published=True).all()
-        
+        base_url = os.getenv('SITE_URL', request.url_root).rstrip('/')
+
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         
         xml += '  <url>\n'
-        xml += '    <loc>https://moscooltech.onrender.com/</loc>\n'
+        xml += f'    <loc>{base_url}/</loc>\n'
         xml += f'    <lastmod>{datetime.utcnow().strftime("%Y-%m-%d")}</lastmod>\n'
         xml += '    <priority>1.0</priority>\n'
         xml += '  </url>\n'
         
         xml += '  <url>\n'
-        xml += '    <loc>https://moscooltech.onrender.com/marketplace</loc>\n'
+        xml += f'    <loc>{base_url}/marketplace</loc>\n'
         xml += f'    <lastmod>{datetime.utcnow().strftime("%Y-%m-%d")}</lastmod>\n'
         xml += '    <priority>0.8</priority>\n'
         xml += '  </url>\n'
@@ -444,33 +534,37 @@ def admin_login():
     if request.method == 'POST':
         client_ip = get_client_ip()
         
-        if not check_login_rate_limit(client_ip):
+        if is_login_rate_limited(client_ip):
             logger.warning(f"Rate limit exceeded for IP: {client_ip}")
-            flash('Too many login attempts. Please try again later.', 'error')
-            return render_template('admin_login.html')
+            flash('Too many failed login attempts. Please try again in 15 minutes.', 'error')
+            return render_template('admin_login.html', 429)
         
-        username = request.form.get('username', '')
+        username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
 
         if not username or not password:
             flash('Please provide both username and password.', 'error')
-            return render_template('admin_login.html')
+            return render_template('admin_login.html', 400)
 
         user = User.query.filter_by(username=username).first()
 
         if user and check_password_hash(user.password_hash, password) and user.is_admin:
-            login_user(user)
+            clear_login_rate_limit(client_ip)
+            # Ensure the session id is regenerated after privilege change (fixation protection)
+            session.clear()
+            login_user(user, remember=False, force=True)
             next_page = request.args.get('next')
-            if not next_page or url_parse(next_page).netloc != '':
+            if not next_page or urlsplit(next_page).netloc != '' or not next_page.startswith('/'):
                 next_page = url_for('admin_dashboard')
             return redirect(next_page)
 
+        record_login_failure(client_ip)
         flash('Invalid username or password.', 'error')
         logger.info(f"Failed login attempt from IP: {client_ip}")
 
     return render_template('admin_login.html')
 
-@app.route('/admin/logout')
+@app.route('/admin/logout', methods=['POST'])
 @login_required
 def admin_logout():
     logout_user()
@@ -864,7 +958,7 @@ def cleanup_old_news():
         logger.error(f"Error cleaning up old news: {str(e)}")
         return 0
 
-@app.route('/admin/fetch-news-api')
+@app.route('/admin/fetch-news-api', methods=['POST'])
 @require_admin
 def admin_fetch_news_api():
     """Manually trigger news fetching from API"""
@@ -886,7 +980,7 @@ def admin_fetch_news_api():
 
     return redirect(url_for('admin_news'))
 
-@app.route('/admin/cleanup-news')
+@app.route('/admin/cleanup-news', methods=['POST'])
 @require_admin
 def admin_cleanup_news():
     """Manually trigger cleanup of old news"""
@@ -899,38 +993,136 @@ def admin_cleanup_news():
 
     return redirect(url_for('admin_news'))
 
-# Initialize scheduler
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=fetch_news_from_api, trigger=IntervalTrigger(days=1), id='fetch_news', name='Fetch News from API')
-scheduler.add_job(func=cleanup_old_news, trigger=IntervalTrigger(days=1), id='cleanup_news', name='Cleanup Old News')
+@app.route('/admin/generate-news', methods=['POST'])
+@require_admin
+def admin_generate_news():
+    """Insert a small set of sample news articles (for demo/testing)."""
+    sample_articles = [
+        {
+            'title': 'Top 5 HVAC Maintenance Tips for the Rainy Season',
+            'description': 'Keep your air conditioning units running efficiently with these essential maintenance tips for humid climates.',
+            'source_id': 'Moscool Tech',
+            'category': 'hvac',
+        },
+        {
+            'title': 'Why Regular Refrigerator Servicing Saves You Money',
+            'description': 'Learn how routine refrigeration maintenance prevents costly breakdowns and extends equipment lifespan.',
+            'source_id': 'Moscool Tech',
+            'category': 'refrigeration',
+        },
+        {
+            'title': 'Solar Power: A Smart Investment for Nigerian Homes',
+            'description': 'With rising energy costs, solar and inverter systems are becoming the preferred backup solution for households.',
+            'source_id': 'Moscool Tech',
+            'category': 'solar',
+        },
+    ]
 
-if __name__ == '__main__':
+    added = 0
+    try:
+        for item in sample_articles:
+            exists = NewsArticle.query.filter_by(title=item['title']).first()
+            if exists:
+                continue
+            article = NewsArticle(
+                title=item['title'],
+                description=item['description'],
+                link='https://moscooltech.com/',
+                pub_date=datetime.utcnow(),
+                source_id=item['source_id'],
+                api_source='manual',
+            )
+            db.session.add(article)
+            added += 1
+        db.session.commit()
+        if added:
+            flash(f'Added {added} sample news article(s).', 'success')
+        else:
+            flash('Sample articles already exist.', 'info')
+    except Exception as e:
+        logger.error(f"Error generating sample news: {e}")
+        db.session.rollback()
+        flash('An error occurred while generating sample news.', 'error')
+
+    return redirect(url_for('admin_news'))
+
+# ---------------------------------------------------------------------------
+# Database / admin bootstrap - must run when the module is loaded by any
+# WSGI server (e.g. gunicorn on Render), not only under `python app.py`.
+# ---------------------------------------------------------------------------
+def init_database():
+    """Create tables and ensure the default admin account exists."""
     with app.app_context():
         db.create_all()
 
         if not User.query.filter_by(username='admin').first():
             admin_password = os.getenv('ADMIN_PASSWORD')
             if not admin_password:
-                logger.error("ADMIN_PASSWORD environment variable not set. Generating temporary password.")
-                admin_password = os.urandom(16).hex()
-                logger.warning(f"WARNING: Temporary admin password generated: {admin_password}")
-            
-            admin = User(
-                username='admin',
-                email=os.getenv('ADMIN_EMAIL', 'admin@moscooltech.com'),
-                password_hash=generate_password_hash(admin_password),
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
-            logger.info("Default admin user created.")
+                if IS_PRODUCTION:
+                    logger.error("ADMIN_PASSWORD environment variable not set on first boot - cannot create admin user.")
+                else:
+                    admin_password = secrets.token_urlsafe(12)
+                    logger.warning(f"ADMIN_PASSWORD not set; generated temporary admin password: {admin_password}")
 
-        scheduler.start()
-        logger.info("Background scheduler started")
+            if admin_password:
+                admin = User(
+                    username='admin',
+                    email=os.getenv('ADMIN_EMAIL', 'admin@moscooltech.com'),
+                    password_hash=generate_password_hash(admin_password),
+                    is_admin=True
+                )
+                db.session.add(admin)
+                db.session.commit()
+                logger.info("Default admin user created.")
 
+# ---------------------------------------------------------------------------
+# Background scheduler (news fetch + cleanup)
+# ---------------------------------------------------------------------------
+scheduler = None
+
+def _fetch_news_job():
+    """APScheduler wrapper that runs fetch inside an app context."""
+    with app.app_context():
+        try:
+            fetch_news_from_api()
+        except Exception as e:
+            logger.error(f"Scheduled news fetch failed: {e}")
+
+def _cleanup_news_job():
+    """APScheduler wrapper that runs cleanup inside an app context."""
+    with app.app_context():
+        try:
+            cleanup_old_news()
+        except Exception as e:
+            logger.error(f"Scheduled news cleanup failed: {e}")
+
+def start_scheduler():
+    """Start the background scheduler (single instance per process)."""
+    global scheduler
+    if scheduler is not None and scheduler.running:
+        return scheduler
+    if os.getenv('ENABLE_SCHEDULER', 'true').lower() in ('0', 'false', 'no'):
+        logger.info("Scheduler disabled via ENABLE_SCHEDULER")
+        return None
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=_fetch_news_job, trigger=IntervalTrigger(days=1), id='fetch_news', name='Fetch News from API')
+    scheduler.add_job(func=_cleanup_news_job, trigger=IntervalTrigger(days=1), id='cleanup_news', name='Cleanup Old News')
+    scheduler.start()
+    logger.info("Background scheduler started")
+    return scheduler
+
+# Run DB bootstrap on import so tables exist under gunicorn too (idempotent).
+# The scheduler starts when the app is actually run (see below), not on import,
+# to avoid duplicate jobs across gunicorn workers.
+init_database()
+
+if __name__ == '__main__':
+    start_scheduler()
     try:
         port = int(os.environ.get('PORT', 5000))
         app.run(host='0.0.0.0', port=port, debug=app.config['DEBUG'])
     except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        logger.info("Scheduler shut down")
+        if scheduler is not None:
+            scheduler.shutdown()
+            logger.info("Scheduler shut down")
