@@ -15,16 +15,21 @@ A modern, responsive website for a technical services company offering AC repair
 
 ```
 moscooltech/
-├── app.py                      # Main Flask application
+├── app.py                      # Main Flask application (incl. boot-time content seeding)
+├── seed_data.py                # Sample portfolio posts + SEO articles + FAQs (shared by seeder & scripts)
 ├── requirements.txt            # Python dependencies
 ├── Procfile                    # Render start command (gunicorn app:app)
-├── render.yaml                 # Render Blueprint (web service + PostgreSQL)
+├── render.yaml                 # Render Blueprint (web service + PostgreSQL + SEED_SAMPLE_CONTENT)
 ├── .env.example                # Environment variable template (never commit .env)
 ├── .gitignore                  # Git ignore rules
+├── GOOGLE_BUSINESS_PROFILE_CHECKLIST.md  # Step-by-step GBP setup for local SEO
+├── scripts/
+│   ├── seed_portfolio.py       # Standalone: seed 3 portfolio case studies
+│   └── seed_articles.py        # Standalone: seed 6 SEO guide articles
 ├── templates/                  # Jinja2 templates
 │   ├── base.html              # Base template with header/footer + SEO/social meta
 │   ├── home.html              # Home page with all sections + LocalBusiness schema
-│   ├── post_detail.html       # Individual post/portfolio item page
+│   ├── post_detail.html       # Post/article page (article markup, FAQ schema, related posts)
 │   ├── marketplace.html       # Items-for-sale listing
 │   ├── error.html             # Custom 400/403/404/500 pages
 │   ├── admin_login.html       # Admin login page
@@ -36,7 +41,7 @@ moscooltech/
 │   ├── admin_contacts.html    # Contact submissions management
 │   └── admin_feedbacks.html   # Feedback submissions management
 └── static/                    # Static files
-    ├── css/style.css          # Custom styles
+    ├── css/style.css          # Custom styles (incl. article typography)
     ├── js/main.js             # Public-site JavaScript (external, CSP-safe)
     ├── js/admin.js            # Admin JavaScript (external, CSP-safe)
     └── img/og-image.png       # Default social-share (Open Graph) image
@@ -94,12 +99,15 @@ moscooltech/
 ## 🌐 Features
 
 ### Public Features
-- ✅ Responsive homepage with all sections (Hero, Services, About, Portfolio, News, Feedback, Contact)
+- ✅ Responsive homepage with all sections (Hero, Services, About, Portfolio, Guides & Tips, News, Feedback, Contact)
+- ✅ Location-targeted SEO: Lagos Mainland & Ogun State in title tags, H1, meta descriptions, footer, and LocalBusiness JSON-LD schema (`areaServed`)
+- ✅ SEO guide articles with proper H2/H3 structure, visible FAQ accordions, and FAQPage JSON-LD schema (rich-snippet eligibility)
+- ✅ Real related-posts on all post detail pages
 - ✅ Contact form with database storage
 - ✅ Feedback form with database storage
 - ✅ Portfolio/marketplace with posts for sale and portfolio items
-- ✅ News articles display
-- ✅ Individual post detail pages
+- ✅ Topic-filtered industry news (AC/refrigeration/solar/inverter only, Nigeria-first)
+- ✅ Google review CTAs (contact section + footer) driven by `GOOGLE_REVIEW_URL`
 - ✅ WhatsApp and phone integration
 - ✅ Social media links
 
@@ -122,7 +130,7 @@ The application uses SQLite with the following tables:
 - **Contact Submissions**: Customer contact form data
 - **Feedback Submissions**: Customer feedback data
 - **News Articles**: Industry news articles (automatically fetched from NewsData.io API)
-- **Posts**: Portfolio items and marketplace listings
+- **Posts**: Portfolio items, marketplace listings, and SEO guide articles (`post_type`: `portfolio` / `sale` / `article`)
 
 ### News API Integration
 
@@ -164,8 +172,49 @@ Copy `.env.example` to `.env` and fill in the values. The most important keys:
 | `DATABASE_URL` | PostgreSQL URL on Render; `sqlite:///...` locally (`postgres://` is auto-normalized) |
 | `SITE_URL` | Optional fixed domain used by `robots.txt`/`sitemap.xml`/social tags |
 | `NEWSDATA_API_KEY` | Optional NewsData.io key for automatic news fetching |
+| `SEED_SAMPLE_CONTENT` | `true` on Render: auto-seeds the sample portfolio case studies + 6 SEO guide articles on boot (idempotent by slug) |
+| `GOOGLE_REVIEW_URL` | Your Google Business Profile review link (`https://g.page/r/XXXX/review`); powers the review CTAs. Falls back to a Google Maps search if unset |
 
 See `.env.example` for the full list with comments.
+
+### Sample Content Seeding
+
+The LeadOS SEO scan flagged the empty portfolio and thin content. The repo ships
+with realistic seed content in `seed_data.py`:
+
+- **3 portfolio case studies** (AC repair in Ikeja, solar install in Magboro,
+  freezer repair in Yaba) targeting high-volume local keywords
+- **6 long-form SEO articles** (AC repair costs in Lagos, solar installation
+  guide, inverter vs generator, refrigerator repair, inverter battery
+  replacement, HVAC maintenance contracts) with FAQ markup
+
+Two ways to seed:
+
+1. **Automatic** (Render default): `SEED_SAMPLE_CONTENT=true` in `render.yaml`
+   seeds everything on the first boot after deploy. Safe on every restart —
+   existing slugs are never modified or duplicated.
+2. **Manual**: run the standalone scripts against your database:
+   ```bash
+   python3 scripts/seed_portfolio.py   # 3 portfolio case studies
+   python3 scripts/seed_articles.py    # 6 SEO articles
+   ```
+
+> ⚠️ Seed images are stock placeholders. Replace them with real before/after
+> job photos via the admin panel — real photos are what convert (and what the
+> SEO scan demanded).
+
+### SEO Article System
+
+Articles are `Post` rows with `post_type='article'`, manageable from the admin
+panel like any other post. Content uses a tiny line-prefix markup rendered
+safely by the `article_html` filter (everything HTML-escaped first):
+
+- `## ` → `<h2>`, `### ` → `<h3>`
+- `- ` → `<li>` (consecutive lines become one `<ul>`)
+- `**text**` → `<strong>`
+
+FAQs for the seeded articles live in `seed_data.py` and render as a visible
+accordion plus FAQPage JSON-LD on the article page.
 
 ### Admin User
 

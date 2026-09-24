@@ -25,6 +25,10 @@ services:
         value: "false"
       - key: NEWSDATA_API_KEY
         sync: false
+      - key: GOOGLE_REVIEW_URL
+        sync: false
+      - key: SEED_SAMPLE_CONTENT
+        value: "true"
 
 databases:
   - name: moscooltech-db

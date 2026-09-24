@@ -1,19 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}Home - Moscool Technical Services{% endblock %}
-{% block meta_description %}<meta name="description" content="Moscool Technical Services - expert installation, repair and maintenance for refrigeration, air-conditioning, solar systems, electrical work and inverters in Nigeria. Available 24/7.">{% endblock %}
+{% block title %}AC Repair, Solar & Refrigeration in Lagos & Ogun State | Moscool Tech{% endblock %}
+{% block meta_description %}<meta name="description" content="Moscool Technical Services — expert AC repair, refrigeration, solar, inverter and electrical installation in Lagos Mainland & Ogun State, Nigeria. Call 24/7.">{% endblock %}
 {% block json_ld %}
 <script type="application/ld+json" nonce="{{ g.csp_nonce }}">
 {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   "name": "Moscool Technical Services",
-  "description": "Professional installation, repair and maintenance services for refrigeration, air-conditioning, solar systems, electrical work, and more.",
+  "description": "Expert installation, repair and maintenance of air conditioning, refrigeration, solar systems, inverters and electrical wiring for homes and businesses in Lagos Mainland and Ogun State, Nigeria.",
   "telephone": "+2349033150460",
   "email": "dayotunde25@gmail.com",
   "url": "{{ request.url_root }}",
   "priceRange": "$$",
   "openingHours": "Mo-Fr 08:00-18:00",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Lagos",
+    "addressRegion": "Lagos State",
+    "addressCountry": "NG"
+  },
+  "areaServed": [
+    { "@type": "City", "name": "Lagos Mainland" },
+    { "@type": "AdministrativeArea", "name": "Ogun State" }
+  ],
   "sameAs": [
     "https://facebook.com/aaron.floyyd",
     "https://instagram.com/moscooltech",
@@ -31,11 +41,12 @@
         <div class="row align-items-center">
             <div class="col-lg-6 mb-5 mb-lg-0">
                 <h1 class="display-4 fw-bold text-dark mb-4">
-                    Professional <span class="text-primary">Technical Services</span> You Can Trust
+                    Professional <span class="text-primary">Technical Services</span> in Lagos Mainland &amp; Ogun State
                 </h1>
                 <p class="lead text-muted mb-4">
-                    Expert installation, repair, and maintenance services for refrigeration, air-conditioning,
-                    solar systems, electrical work, and more. Available 24/7 for your technical needs.
+                    Expert AC repair, refrigeration, solar panel installation, inverter, and electrical
+                    services for homes and businesses in Lagos Mainland and Ogun State, Nigeria.
+                    Available 24/7 for your technical needs.
                 </p>
                 <div class="d-flex flex-column flex-sm-row gap-3 mb-4">
                     <a href="{{ url_for('home') }}#contact" class="btn btn-primary btn-custom">
@@ -387,13 +398,49 @@
     </div>
 </section>
 
+<!-- Guides & Tips Section (SEO articles) -->
+{% if article_posts %}
+<section id="guides" class="py-5">
+    <div class="container-fluid px-4">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Guides &amp; Tips</h2>
+            <p class="section-subtitle">
+                Expert advice on AC repair, solar, inverters and refrigeration for homes and businesses in Lagos Mainland &amp; Ogun State
+            </p>
+        </div>
+
+        <div class="row g-4">
+            {% for post in article_posts %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="card news-card h-100 border-0 shadow-sm">
+                        {% if post.image_url %}
+                            <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}" loading="lazy"
+                                 class="card-img-top" style="height: 200px; object-fit: cover;">
+                        {% endif %}
+                        <div class="card-body">
+                            <small class="text-muted"><i class="fas fa-book-open me-1"></i>Guide</small>
+                            <h6 class="card-title fw-bold mt-2">{{ post.title }}</h6>
+                            <p class="card-text text-muted small">{{ post.meta_description or post.content[:140] }}...</p>
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}"
+                               class="btn btn-outline-primary btn-sm stretched-link">
+                                Read Guide <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <!-- News Section -->
 <section id="news" class="py-5">
     <div class="container-fluid px-4">
         <div class="text-center mb-5">
             <h2 class="section-title">Industry News</h2>
             <p class="section-subtitle">
-                Stay updated with the latest technical news in HVAC, solar, electrical, and refrigeration industries
+                Latest AC, refrigeration, solar, and electrical industry updates for Nigerian homes and businesses
             </p>
         </div>
 
@@ -647,6 +694,28 @@
                                         <p class="mb-0 text-muted">Mon-Fri: 8:00 AM - 6:00 PM</p>
                                         <p class="mb-0 text-muted">Sat-Sun: Emergency Only</p>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-warning bg-opacity-25 p-3 rounded me-3">
+                                            <i class="fas fa-star text-warning fa-lg"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">Happy with our work?</h6>
+                                            <p class="mb-0 text-muted small">Your Google review helps other Lagos &amp; Ogun customers find us.</p>
+                                        </div>
+                                    </div>
+                                    <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                                       target="_blank" rel="noopener noreferrer" class="btn btn-warning fw-semibold">
+                                        <i class="fab fa-google me-2"></i>Leave a Review
+                                    </a>
                                 </div>
                             </div>
                         </div>

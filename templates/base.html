@@ -6,13 +6,13 @@
     <title>{% block title %}Moscool Technical Services{% endblock %}</title>
 
     <!-- SEO: meta description, canonical, Open Graph -->
-    {% block meta_description %}<meta name="description" content="Professional installation, repair, and maintenance services for refrigeration, air-conditioning, solar systems, electrical work, and more in Nigeria. Available 24/7.">{% endblock %}
+    {% block meta_description %}<meta name="description" content="Moscool Technical Services — expert AC repair, refrigeration, solar panel, inverter and electrical installation in Lagos Mainland & Ogun State, Nigeria. Call 24/7 for emergency service.">{% endblock %}
     {% block canonical %}<link rel="canonical" href="{{ request.base_url }}">{% endblock %}
     {% block social_meta %}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Moscool Technical Services">
     <meta property="og:title" content="{% block og_title %}Moscool Technical Services{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Professional technical services for refrigeration, HVAC, solar, electrical and inverter needs. Available 24/7.{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Expert AC repair, refrigeration, solar, inverter and electrical services in Lagos Mainland & Ogun State, Nigeria. Available 24/7.{% endblock %}">
     <meta property="og:url" content="{{ request.base_url }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta property="og:image" content="{{ request.url_root }}static/img/og-image.png">
@@ -44,7 +44,7 @@
                 </div>
                 <div class="d-flex align-items-center gap-1 text-muted">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>Serving Your Area</span>
+                    <span>Serving Lagos Mainland & Ogun State</span>
                 </div>
             </div>
 
@@ -177,10 +177,14 @@
                 <div class="col-lg-3 col-md-6">
                     <h5 class="text-primary mb-3">Moscool Technical Services</h5>
                     <p class="text-muted mb-3">
-                        Professional technical services for all your refrigeration, HVAC, solar,
-                        electrical, and inverter needs. Licensed, insured, and available 24/7.
+                        Professional AC repair, refrigeration, solar, inverter, and electrical services
+                        across Lagos Mainland and Ogun State, Nigeria. Licensed, insured, and available 24/7.
                     </p>
                     <div class="d-flex gap-3">
+                        <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                           target="_blank" rel="noopener noreferrer" class="text-warning" title="Leave us a Google review">
+                            <i class="fab fa-google fa-lg"></i>
+                        </a>
                         <a href="https://wa.me/2349033150460?text=Hi! I need technical services for my appliances."
                            target="_blank" rel="noopener noreferrer" class="text-success" title="WhatsApp">
                             <i class="fab fa-whatsapp fa-lg"></i>
@@ -248,11 +252,18 @@
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-map-marker-alt me-2"></i>
-                            <span>Serving Your Area</span>
+                            <span>Lagos Mainland & Ogun State, Nigeria</span>
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-clock me-2"></i>
                             <span>Mon-Fri: 8AM-6PM</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-star me-2 text-warning"></i>
+                            <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                               target="_blank" rel="noopener noreferrer" class="text-decoration-none text-muted">
+                                Leave a Google review
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -260,7 +271,7 @@
 
             <hr class="my-4">
             <div class="text-center text-muted">
-                <p class="mb-0">&copy; 2025 MoscoolTech. All rights reserved. Licensed & Insured.</p>
+                <p class="mb-0">&copy; 2025 MoscoolTech &mdash; AC, Refrigeration, Solar & Electrical Services in Lagos Mainland & Ogun State. All rights reserved. Licensed & Insured.</p>
             </div>
         </div>
     </footer>

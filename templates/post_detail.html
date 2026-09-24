@@ -18,6 +18,23 @@
   "mainEntityOfPage": {{ post.get_canonical_url()|tojson }}
 }
 </script>
+{% if faqs %}
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for faq in faqs %}
+    {
+      "@type": "Question",
+      "name": {{ faq.q|tojson }},
+      "acceptedAnswer": { "@type": "Answer", "text": {{ faq.a|tojson }} }
+    }{{ "," if not loop.last else "" }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -28,6 +45,8 @@
             <li class="breadcrumb-item"><a href="{{ url_for('home') }}" class="text-decoration-none">Home</a></li>
             {% if post.post_type == 'sale' %}
                 <li class="breadcrumb-item"><a href="{{ url_for('marketplace') }}" class="text-decoration-none">Marketplace</a></li>
+            {% elif post.post_type == 'article' %}
+                <li class="breadcrumb-item"><a href="{{ url_for('home') }}#guides" class="text-decoration-none">Guides &amp; Tips</a></li>
             {% endif %}
             <li class="breadcrumb-item active" aria-current="page">{{ post.title[:60] }}</li>
         </ol>
@@ -66,8 +85,8 @@
                         <div>
                             <h1 class="h2 fw-bold text-dark mb-2">{{ post.title }}</h1>
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                <span class="badge bg-{{ 'primary' if post.post_type == 'portfolio' else 'success' }}">
-                                    {{ 'Portfolio' if post.post_type == 'portfolio' else 'For Sale' }}
+                                <span class="badge bg-{{ 'primary' if post.post_type == 'portfolio' else ('success' if post.post_type == 'sale' else 'info') }}">
+                                    {{ 'Portfolio' if post.post_type == 'portfolio' else ('For Sale' if post.post_type == 'sale' else 'Guide') }}
                                 </span>
                                 <span class="badge bg-secondary">{{ post.category }}</span>
                             </div>
@@ -114,12 +133,38 @@
                     {% endif %}
 
                     <!-- Post Content -->
+                    {% if post.post_type == 'article' %}
+                        <div class="post-content article-content">
+                            {{ post.content|article_html }}
+                            {% if faqs %}
+                            <h2 class="mt-5">Frequently Asked Questions</h2>
+                            <div class="accordion mt-3" id="faqAccordion">
+                                {% for faq in faqs %}
+                                <div class="accordion-item">
+                                    <h3 class="accordion-header" id="faq-h-{{ loop.index }}">
+                                        <button class="accordion-button {{ 'collapsed' if not loop.first }}" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#faq-{{ loop.index }}"
+                                                aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                                            {{ faq.q }}
+                                        </button>
+                                    </h3>
+                                    <div id="faq-{{ loop.index }}" class="accordion-collapse collapse {{ 'show' if loop.first }}"
+                                         aria-labelledby="faq-h-{{ loop.index }}" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body text-muted">{{ faq.a }}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
                     <div class="post-content">
                         <h5 class="fw-bold mb-3">Description</h5>
                         <div class="text-muted" style="line-height: 1.7;">
                             {{ post.content|nl2br }}
                         </div>
                     </div>
+                    {% endif %}
 
                     <!-- Contact CTA -->
                     <div class="mt-5 p-4 bg-light rounded">
@@ -144,21 +189,27 @@
             </div>
 
             <!-- Related Posts -->
+            {% if related_posts %}
             <div class="mt-5">
-                <h4 class="fw-bold mb-4">More {{ 'Projects' if post.post_type == 'portfolio' else 'Items' }}</h4>
+                <h4 class="fw-bold mb-4">More {{ 'Projects' if post.post_type == 'portfolio' else ('Guides' if post.post_type == 'article' else 'Items') }}</h4>
                 <div class="row g-3">
-                    <!-- This would be populated with related posts in a real implementation -->
+                    {% for rel in related_posts %}
                     <div class="col-md-4">
                         <div class="card h-100 border-0 shadow-sm">
-                            <div class="card-body text-center p-3">
-                                <i class="fas fa-tools text-primary fa-2x mb-2"></i>
-                                <h6 class="card-title">Coming Soon</h6>
-                                <p class="card-text small text-muted">More projects will be added soon.</p>
+                            {% if rel.image_url %}
+                                <img src="{{ rel.image_url }}" alt="{{ rel.image_alt or rel.title }}" loading="lazy"
+                                     class="card-img-top" style="height: 140px; object-fit: cover;">
+                            {% endif %}
+                            <div class="card-body p-3">
+                                <h6 class="card-title fw-bold mb-2">{{ rel.title[:70] }}{% if rel.title|length > 70 %}&hellip;{% endif %}</h6>
+                                <a href="{{ url_for('post_detail', post_id=rel.id) }}" class="stretched-link small text-decoration-none">Read more</a>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

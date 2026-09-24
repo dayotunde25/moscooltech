@@ -41,6 +41,19 @@ IS_PRODUCTION = not IS_DEVELOPMENT
 # Security: Debug mode must NEVER be enabled in production
 app.config['DEBUG'] = IS_DEVELOPMENT
 
+# Google Business Profile review link (local SEO). Set GOOGLE_REVIEW_URL to the
+# g.page/r/XXXX/review short link from the GBP dashboard -> "Ask for reviews".
+# When unset, review CTAs on the site link to a Google Maps search for the
+# business instead (still functional, just less direct).
+GOOGLE_REVIEW_URL = os.getenv('GOOGLE_REVIEW_URL', '')
+GOOGLE_REVIEW_FALLBACK_URL = 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos'
+
+# Auto-seed sample portfolio posts + SEO articles on first boot (idempotent -
+# existing slugs are never touched). Enabled in render.yaml so a fresh deploy
+# boots with real-looking content. Set to false (or leave unset) to disable;
+# the standalone scripts in scripts/ do the same seeding manually.
+SEED_SAMPLE_CONTENT = os.getenv('SEED_SAMPLE_CONTENT', 'false').lower() in ('1', 'true', 'yes')
+
 # Security: Load secret key from environment (REQUIRED in production)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 if not app.config['SECRET_KEY']:
@@ -304,6 +317,58 @@ def nl2br_filter(value):
     escaped = str(escape(value or ''))
     return Markup(escaped.replace('\r\n', '\n').replace('\n', '<br>\n'))
 
+
+# Lightweight, whitelist-based markup for SEO articles. Everything is HTML-
+# escaped first; only the small set of generated tags below is ever injected,
+# so author-supplied HTML can never reach the page.
+@app.template_filter('article_html')
+def article_html_filter(value):
+    """Render plain-text article content with proper H2/H3/list structure.
+
+    Supported (line-prefix) conventions in the source text:
+        '## '  -> <h2>, '### ' -> <h3>
+        '- '   -> <li> (consecutive lines become one <ul>)
+        blank line separates paragraphs
+    All text is HTML-escaped; only the structural tags below are generated.
+    """
+    import html as _html
+    import re as _re
+
+    def _bold(text):
+        """Convert **text** to <strong> (input already escaped)."""
+        return _re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', text)
+
+    raw_lines = str(value or '').replace('\r\n', '\n').split('\n')
+    out = []
+    list_buffer = []
+
+    def flush_list():
+        if list_buffer:
+            items = ''.join(f'<li>{_bold(_html.escape(item))}</li>' for item in list_buffer)
+            out.append(f'<ul>{items}</ul>')
+            list_buffer.clear()
+
+    for line in raw_lines:
+        stripped = line.strip()
+        if not stripped:
+            flush_list()
+            continue
+        if stripped.startswith('### '):
+            flush_list()
+            out.append(f'<h3>{_html.escape(stripped[4:])}</h3>')
+        elif stripped.startswith('## '):
+            flush_list()
+            out.append(f'<h2>{_html.escape(stripped[3:])}</h2>')
+        elif stripped.startswith('- '):
+            list_buffer.append(stripped[2:])
+        else:
+            flush_list()
+            # Bold **text** -> <strong> after escaping
+            out.append(f'<p>{_bold(_html.escape(stripped))}</p>')
+
+    flush_list()
+    return Markup(''.join(out))
+
 # Security: per-request nonce so inline JSON-LD is allowed without 'unsafe-inline'
 @app.before_request
 def set_csp_nonce():
@@ -366,6 +431,8 @@ def internal_error(error):
 def home():
     portfolio_posts = Post.query.filter_by(post_type='portfolio', published=True).order_by(Post.created_at.desc()).limit(6).all()
     sale_posts = Post.query.filter_by(post_type='sale', published=True).order_by(Post.created_at.desc()).limit(6).all()
+    # SEO guide articles (content roadmap) - newest 3 for the homepage section
+    article_posts = Post.query.filter_by(post_type='article', published=True).order_by(Post.created_at.desc()).limit(3).all()
 
     page = request.args.get('page', 1, type=int)
     if page < 1:
@@ -377,6 +444,7 @@ def home():
     return render_template('home.html',
                          portfolio_posts=portfolio_posts,
                          sale_posts=sale_posts,
+                         article_posts=article_posts,
                          news_articles=news_articles,
                          news_pagination=news_pagination)
 
@@ -463,7 +531,17 @@ def submit_feedback():
 @app.route('/post/<int:post_id>')
 def post_detail(post_id):
     post = Post.query.filter_by(id=post_id, published=True).first_or_404()
-    return render_template('post_detail.html', post=post)
+    # Related posts of the same type (excludes the current post)
+    related = (Post.query.filter(Post.post_type == post.post_type,
+                                 Post.published.is_(True),
+                                 Post.id != post.id)
+               .order_by(Post.created_at.desc()).limit(3).all())
+    # FAQs for seeded SEO articles (used for visible Q&A + FAQPage JSON-LD).
+    # Looked up by slug from seed_data so no DB column is required.
+    import seed_data
+    faqs_by_slug = {a['slug']: a['faqs'] for a in seed_data.ARTICLES if a.get('faqs')}
+    return render_template('post_detail.html', post=post, related_posts=related,
+                           faqs=faqs_by_slug.get(post.slug, []))
 
 @app.route('/marketplace')
 def marketplace():
@@ -509,12 +587,14 @@ def sitemap():
         xml += f'    <lastmod>{datetime.utcnow().strftime("%Y-%m-%d")}</lastmod>\n'
         xml += '    <priority>0.8</priority>\n'
         xml += '  </url>\n'
-        
+
         for post in posts:
+            # SEO articles are discovery content - slightly higher priority
+            priority = '0.8' if post.post_type == 'article' else '0.7'
             xml += '  <url>\n'
             xml += f'    <loc>{post.get_canonical_url()}</loc>\n'
             xml += f'    <lastmod>{post.updated_at.strftime("%Y-%m-%d")}</lastmod>\n'
-            xml += '    <priority>0.7</priority>\n'
+            xml += f'    <priority>{priority}</priority>\n'
             xml += '  </url>\n'
         
         xml += '</urlset>\n'
@@ -849,36 +929,80 @@ NEWSDATA_API_KEY = os.getenv('NEWSDATA_API_KEY', '')
 NEWSDATA_BASE_URL = 'https://newsdata.io/api/1/latest'
 NEWS_FETCH_TIMEOUT = 30
 
+# Only fetch news about the services Moscool actually offers. The query uses
+# boolean OR so any one of these topics matches; the client-side filter below
+# then drops articles where none of the topics appear in title/description
+# (protects against loose API keyword matches).
+NEWS_KEYWORDS = (
+    'air conditioning', 'air conditioner', 'refrigerator', 'refrigeration',
+    'hvac', 'solar panel', 'solar installation', 'inverter', 'electrical wiring',
+)
+NEWS_QUERY = ' OR '.join(f'"{keyword}"' for keyword in NEWS_KEYWORDS)
+
+def _article_is_relevant(article_data):
+    """Check that a fetched article is actually about one of our service topics."""
+    text = ' '.join(filter(None, (
+        str(article_data.get('title') or ''),
+        str(article_data.get('description') or ''),
+    ))).lower()
+    return any(keyword in text for keyword in NEWS_KEYWORDS)
+
+def _request_relevant_news(base_params, country=None):
+    """Request news from the API and return only topic-relevant articles."""
+    params = dict(base_params)
+    if country:
+        params['country'] = country
+    try:
+        response = requests.get(NEWSDATA_BASE_URL, params=params, timeout=NEWS_FETCH_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+    except requests.exceptions.RequestException as e:
+        if country:
+            logger.warning(f"Network error fetching Nigerian news, will try global: {str(e)}")
+        else:
+            logger.warning(f"Network error fetching news from API: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Error parsing news API response: {str(e)}")
+        return []
+
+    if data.get('status') != 'success':
+        logger.warning(f"API returned non-success status: {data.get('status')}")
+        return []
+
+    results = data.get('results') or []
+    return [a for a in results if isinstance(a, dict) and _article_is_relevant(a)]
+
 def fetch_news_from_api():
-    """Fetch news from newsdata.io API"""
+    """Fetch AC/refrigeration/solar/inverter news from newsdata.io API.
+
+    Prefers Nigerian news (local relevance) and falls back to global
+    topic news when nothing relevant was published in Nigeria.
+    """
     try:
         if not NEWSDATA_API_KEY:
             logger.info("NewsData.io API key not configured")
             return 0
 
-        params = {
+        base_params = {
             'apikey': NEWSDATA_API_KEY,
-            'q': 'HVAC',
+            'q': NEWS_QUERY,
             'language': 'en',
-            'size': 5
+            'size': 10,
+            'removeduplicate': 1
         }
 
-        response = requests.get(NEWSDATA_BASE_URL, params=params, timeout=NEWS_FETCH_TIMEOUT)
-        response.raise_for_status()
+        relevant_results = _request_relevant_news(base_params, country='ng')
+        if not relevant_results:
+            relevant_results = _request_relevant_news(base_params)
 
-        data = response.json()
-
-        if data.get('status') != 'success':
-            logger.warning(f"API returned non-success status: {data.get('status')}")
-            return 0
-
-        if 'results' not in data or not data['results']:
-            logger.info("No results found in API response")
+        if not relevant_results:
+            logger.info("No relevant news articles found in API response")
             return 0
 
         articles_added = 0
 
-        for article_data in data['results']:
+        for article_data in relevant_results:
             if not isinstance(article_data, dict):
                 continue
 
@@ -1074,6 +1198,71 @@ def init_database():
                 db.session.add(admin)
                 db.session.commit()
                 logger.info("Default admin user created.")
+
+        if SEED_SAMPLE_CONTENT:
+            _seed_sample_content()
+
+
+def _seed_sample_content():
+    """Insert sample portfolio posts + SEO articles (idempotent by slug).
+
+    Content lives in seed_data.py so the standalone scripts in scripts/ and
+    this auto-seeder stay in sync. Existing slugs are skipped, so restarts
+    and multi-worker boots never duplicate rows, and posts an admin has
+    intentionally renamed are not resurrected.
+    """
+    import seed_data
+
+    author = User.query.filter_by(username='admin').first()
+    if not author:
+        logger.warning("Sample content seeding skipped - no admin user.")
+        return
+
+    def _exists(slug):
+        return Post.query.filter_by(slug=slug).first() is not None
+
+    added = 0
+
+    for spec in seed_data.PORTFOLIO_POSTS:
+        title = spec['title']
+        slug = re.sub(r'[^a-z0-9-]', '', title.lower().replace(' ', '-')[:250])
+        if _exists(slug):
+            continue
+        db.session.add(Post(
+            title=title,
+            slug=slug,
+            content=spec['content'],
+            meta_description=spec['meta_description'],
+            image_url=spec['image'],
+            image_alt=title,
+            category=spec['category'],
+            post_type='portfolio',
+            published=True,
+            author_id=author.id,
+        ))
+        added += 1
+
+    for spec in seed_data.ARTICLES:
+        slug = spec['slug']
+        if _exists(slug):
+            continue
+        db.session.add(Post(
+            title=spec['title'],
+            slug=slug,
+            content=spec['content'],
+            meta_description=spec['meta_description'],
+            image_url=spec['image'],
+            image_alt=spec['image_alt'],
+            category='guides',
+            post_type='article',
+            published=True,
+            author_id=author.id,
+        ))
+        added += 1
+
+    if added:
+        db.session.commit()
+        logger.info(f"Seeded {added} sample portfolio/article posts (SEED_SAMPLE_CONTENT).")
 
 # ---------------------------------------------------------------------------
 # Background scheduler (news fetch + cleanup)
