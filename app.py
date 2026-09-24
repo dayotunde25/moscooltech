@@ -73,9 +73,14 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=12)
 
 # SQLAlchemy configuration
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///moscool_tech.db')
-# Render provides postgres:// URLs; SQLAlchemy 2.x requires postgresql:// scheme
+# Render provides postgres:// URLs; SQLAlchemy 2.x requires postgresql:// scheme.
+# The +psycopg2 suffix explicitly selects the installed driver (psycopg2-binary):
+# SQLAlchemy 2.1 changed the default for bare postgresql:// URLs to psycopg3,
+# which would crash the app with ModuleNotFoundError: No module named 'psycopg'.
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = 'postgresql://' + DATABASE_URL[len('postgres://'):]
+if DATABASE_URL.startswith('postgresql://') and '+psycopg2' not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg2://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}

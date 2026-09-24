@@ -1,5 +1,8 @@
 Flask==3.1.3
 Flask-SQLAlchemy==3.0.5
+# Pin the 2.0.x line: SQLAlchemy 2.1 changed the default PostgreSQL driver for
+# bare postgresql:// URLs to psycopg3, which we do not ship (we use psycopg2).
+SQLAlchemy>=2.0.0,<2.1
 Flask-Login==0.6.3
 Flask-WTF==1.2.2
 Werkzeug==3.1.6
@@ -11,3 +14,4 @@ python-dateutil==2.8.2
 WTForms==3.0.1
 gunicorn==23.0.0
 psycopg2-binary==2.9.10
+# Driver explicitly requested by the postgresql+psycopg2:// URL scheme (see app.py)
