@@ -725,7 +725,9 @@ def admin_create_post():
                 title=title,
                 slug=slug,
                 content=content,
-                meta_description=meta_description or content[:160],
+                # [:160] guards the VARCHAR(160) column - PostgreSQL rejects
+                # longer values with StringDataRightTruncation
+                meta_description=(meta_description or content)[:160],
                 image_url=final_image_url,
                 image_alt=image_alt or title,
                 video_url=final_video_url,
@@ -760,7 +762,7 @@ def admin_edit_post(post_id):
     if request.method == 'POST':
         post.title = sanitize_input(request.form.get('title', ''), 200)
         post.content = sanitize_input(request.form.get('content', ''), 10000)
-        post.meta_description = sanitize_input(request.form.get('meta_description', ''), 160)
+        post.meta_description = sanitize_input(request.form.get('meta_description', ''), 160)[:160]
         post.image_alt = sanitize_input(request.form.get('image_alt', ''), 200)
 
         uploaded_image_url = None
@@ -1237,7 +1239,9 @@ def _seed_sample_content():
             title=title,
             slug=slug,
             content=spec['content'],
-            meta_description=spec['meta_description'],
+            # Guard against VARCHAR(160) overflow (PostgreSQL enforces strictly;
+            # an oversized value crashes the boot with StringDataRightTruncation)
+            meta_description=spec['meta_description'][:160],
             image_url=spec['image'],
             image_alt=title,
             category=spec['category'],
@@ -1255,7 +1259,7 @@ def _seed_sample_content():
             title=spec['title'],
             slug=slug,
             content=spec['content'],
-            meta_description=spec['meta_description'],
+            meta_description=spec['meta_description'][:160],
             image_url=spec['image'],
             image_alt=spec['image_alt'],
             category='guides',

@@ -9,6 +9,7 @@ from datetime import datetime
 
 from conftest import login  # noqa: F401  (re-exported helper)
 
+import app as app_module
 from app import db, FeedbackSubmission, ContactSubmission, NewsArticle, Post, User
 
 
@@ -219,3 +220,61 @@ def test_post_content_is_escaped_and_marked_up(client, csrf):
 
     sitemap = client.get('/sitemap.xml').get_data(as_text=True)
     assert f'/post/{post_id}' in sitemap
+
+
+# ---------------------------------------------------------------------------
+# Seed content fits PostgreSQL column limits
+# ---------------------------------------------------------------------------
+# SQLite (used by the test DB) does NOT enforce VARCHAR lengths, but
+# PostgreSQL on Render does: an oversized value fails the boot with
+# StringDataRightTruncation. These checks catch that before deploy.
+def test_seed_data_fits_post_column_limits():
+    import re as _re
+    import seed_data
+
+    limits = {'title': 200, 'slug': 250, 'meta_description': 160, 'image_alt': 200}
+
+    def _check(source, **fields):
+        for field, value in fields.items():
+            assert value is not None and len(value) <= limits[field], (
+                f'{source}: {field} is {len(value)} chars, limit {limits[field]}: {value!r}'
+            )
+
+    for spec in seed_data.PORTFOLIO_POSTS:
+        slug = _re.sub(r'[^a-z0-9-]', '', spec['title'].lower().replace(' ', '-')[:250])
+        _check(spec['title'][:40], title=spec['title'], slug=slug,
+               meta_description=spec['meta_description'], image_alt=spec['title'])
+
+    for spec in seed_data.ARTICLES:
+        slug = spec.get('slug') or _re.sub(r'[^a-z0-9-]', '', spec['title'].lower().replace(' ', '-')[:250])
+        _check(spec['title'][:40], title=spec['title'], slug=slug,
+               meta_description=spec['meta_description'], image_alt=spec['image_alt'])
+
+
+def test_seeder_truncates_oversized_meta_description(client):
+    """Defense-in-depth: even if seed data drifts over the limit, the seeder
+    must truncate instead of crashing the boot on PostgreSQL."""
+    import seed_data
+    from app import Post, db
+
+    class _FakeOversized(list):
+        pass
+
+    # Temporarily inject an oversized meta_description into the first article
+    original = seed_data.ARTICLES[0]['meta_description']
+    seed_data.ARTICLES[0]['meta_description'] = 'X' * 200
+    try:
+        with client.application.app_context():
+            # Point the fake spec at a slug guaranteed not to exist yet
+            seed_data.ARTICLES[0]['slug'] = 'oversize-probe-article'
+            app_module._seed_sample_content()
+            post = Post.query.filter_by(slug='oversize-probe-article').first()
+            assert post is not None
+            assert len(post.meta_description) <= 160
+    finally:
+        seed_data.ARTICLES[0]['meta_description'] = original
+        with client.application.app_context():
+            post = Post.query.filter_by(slug='oversize-probe-article').first()
+            if post:
+                db.session.delete(post)
+                db.session.commit()

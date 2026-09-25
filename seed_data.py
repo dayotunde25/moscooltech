@@ -116,7 +116,7 @@ ARTICLES = [
         'slug': 'ac-repair-in-lagos-what-to-expect-costs-and-who-to-call',
         'image': IMG.format('photo-1621905251918-48416bd8575a'),
         'image_alt': 'Technician servicing a split air conditioner in Lagos',
-        'meta_description': 'AC repair in Lagos explained: common faults, typical repair costs in Naira, how to choose a trustworthy technician, and 24/7 emergency service in Lagos Mainland & Ogun State.',
+        'meta_description': 'AC repair in Lagos explained: common faults, realistic costs in Naira, how to choose a trustworthy technician, and 24/7 service in Lagos & Ogun State.',
         'faqs': [
             {'q': 'How much does AC repair cost in Lagos?',
              'a': 'Most common AC repairs in Lagos cost between ₦10,000 and ₦60,000: servicing runs ₦10,000–₦25,000 per unit, refrigerant recharge ₦25,000–₦60,000, and capacitor replacement ₦10,000–₦25,000. A compressor replacement is the big one at ₦120,000–₦350,000 depending on unit size. Insist on a written quote before any work begins.'},
@@ -219,7 +219,7 @@ Call or WhatsApp **+2349033150460** now for a same-day diagnosis, or send us a m
         'slug': 'solar-panel-installation-in-nigeria-cost-and-process-guide',
         'image': IMG.format('photo-1509391366360-2e959784a276'),
         'image_alt': 'Solar panels installed on a residential rooftop in Nigeria',
-        'meta_description': 'Solar panel installation in Nigeria: realistic 2026 costs for homes, how the process works step by step, sizing your system, and choosing an installer in Lagos & Ogun State.',
+        'meta_description': 'Solar panel installation in Nigeria: realistic 2026 costs, the step-by-step process, system sizing, and choosing an installer in Lagos & Ogun State.',
         'faqs': [
             {'q': 'How much does solar panel installation cost in Nigeria in 2026?',
              'a': 'A 1.5kVA essentials package costs ₦1.2m–₦1.8m installed with lithium storage, a 3.5kVA family system ₦2.5m–₦4m, and a 5kVA whole-home system ₦4m–₦6.5m. Battery quality is where quotes differ most - undersized or fake batteries are the most common way buyers get cheated.'},
@@ -318,7 +318,7 @@ Call or WhatsApp **+2349033150460** to book your free load audit today.''',
         'slug': 'inverter-vs-generator-which-power-backup-is-right-for-nigerian-homes',
         'image': IMG.format('photo-1615873968403-89e068629265'),
         'image_alt': 'Home power inverter system installed in a Nigerian home',
-        'meta_description': 'Inverter vs generator for Nigerian homes: true 2026 running costs compared, noise and maintenance, which loads each can carry, and how to choose the right backup power.',
+        'meta_description': 'Inverter vs generator for Nigerian homes: true 2026 running costs compared, noise and maintenance, what each can power, and how to choose right.',
         'faqs': [
             {'q': 'Is an inverter cheaper than a generator in Nigeria?',
              'a': 'Over 10 years, yes for most homes. A small petrol generator running 5 hours daily burns roughly ₦450,000–₦700,000 per year in fuel, oil and repairs. A 1.5–3.5kVA inverter system costs ₦1.2m–₦4m installed once, then runs nearly free - typically paying for itself in 3-5 years.'},
@@ -417,7 +417,7 @@ Call or WhatsApp **+2349033150460** to book your free load audit, or read our co
         'slug': 'book-a-refrigerator-repair-technician-in-lagos-same-day-service',
         'image': IMG.format('photo-1581094794329-c8112a89af12'),
         'image_alt': 'Refrigerator repair technician at work in Lagos',
-        'meta_description': 'Need a refrigerator repair technician in Lagos? Signs your fridge needs urgent repair, typical costs, what same-day service covers, and how to protect your food and stock.',
+        'meta_description': 'Need a refrigerator repair technician in Lagos? Warning signs, typical costs, same-day commercial service, and how to protect your food and stock.',
         'faqs': [
             {'q': 'How much does refrigerator repair cost in Lagos?',
              'a': 'Minor repairs (thermostat, door seal, fan motor) run ₦10,000–₦35,000. Refrigerant recharge with leak sealing costs ₦25,000–₦70,000, and compressor replacement ₦90,000–₦250,000 depending on fridge size. Commercial freezers cost more due to larger components.'},
@@ -495,7 +495,7 @@ Call or WhatsApp **+2349033150460** now - for commercial freezers with stock at 
         'slug': 'how-to-know-when-your-home-inverter-battery-needs-replacing',
         'image': IMG.format('photo-1558618666-fcd25c85cd64'),
         'image_alt': 'Inverter battery bank installed in a Nigerian home',
-        'meta_description': 'Signs your inverter battery is failing: shorter backup times, swelling, slow charging. Test methods, lithium vs lead-acid replacement costs in Nigeria, and safe disposal.',
+        'meta_description': 'Signs your inverter battery is failing: shrinking backup time, swelling, slow charging. Test methods, lithium vs lead-acid costs, and safe disposal.',
         'faqs': [
             {'q': 'How long do inverter batteries last in Nigeria?',
              'a': 'Lithium batteries last 8-15 years; tubular lead-acid batteries 3-5 years with good maintenance; cheap flat-plate lead-acid often just 12-24 months. Nigeria\'s heat shortens all battery life - a battery in a 35°C room ages much faster than one in a cool, ventilated space.'},
@@ -562,7 +562,7 @@ Call or WhatsApp **+2349033150460** to book your free check, or read our inverte
         'slug': 'hvac-maintenance-contracts-for-businesses-in-nigeria-whats-included',
         'image': IMG.format('photo-1620714223084-8fcacc6dfd8d'),
         'image_alt': 'HVAC technician maintaining commercial air conditioning units',
-        'meta_description': 'HVAC maintenance contracts for Nigerian businesses: what a good contract includes, realistic pricing, quarterly vs monthly plans, and how preventive maintenance beats emergency repairs.',
+        'meta_description': 'HVAC maintenance contracts for Nigerian businesses: what a good contract includes, realistic pricing, quarterly vs monthly plans, and the ROI.',
         'faqs': [
             {'q': 'What does an HVAC maintenance contract include?',
              'a': 'A good contract covers scheduled service visits (filter and coil cleaning, drain flushing, refrigerant and electrical checks), priority emergency response with reduced or waived call-out fees, written reports after every visit, and discount pricing on parts and repairs. Exact scope varies - insist on a written checklist of what each visit includes.'},
