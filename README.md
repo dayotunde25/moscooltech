@@ -111,9 +111,12 @@ moscooltech/
 - ✅ WhatsApp and phone integration
 - ✅ Social media links
 
-### Admin Features
+### Admin Features (CRM)
 - ✅ Secure admin authentication
-- ✅ Dashboard with statistics
+- ✅ CRM dashboard (leads, pipeline value, content + AI activity)
+- ✅ Lead pipeline board (New → Contacted → Quoted → Won/Lost) with estimated values and activity notes
+- ✅ AI Content Studio: generate guide articles from a topic, review as a draft, publish when approved
+- ✅ AI topic queue + cron/CLI worker for scheduled drafts
 - ✅ Portfolio post management (CRUD operations)
 - ✅ News article management (manual + API integration)
 - ✅ Automatic news fetching from NewsData.io API
@@ -131,6 +134,13 @@ The application uses SQLite with the following tables:
 - **Feedback Submissions**: Customer feedback data
 - **News Articles**: Industry news articles (automatically fetched from NewsData.io API)
 - **Posts**: Portfolio items, marketplace listings, and SEO guide articles (`post_type`: `portfolio` / `sale` / `article`)
+- **LeadStatus / LeadNote**: CRM stage (with estimated value) and activity notes per contact submission
+- **PostFaq**: FAQs for AI-generated or manually edited guides (drives the FAQ accordion + FAQPage schema)
+- **ContentTopic**: queue of AI article topics (`queued` / `generated` / `failed`)
+- **AiGeneration**: audit log of AI calls (provider, model, duration, error)
+
+> These are additive tables created by `db.create_all()` on boot. No migration is
+> needed, and existing `contact_submission` / `post` rows are untouched.
 
 ### News API Integration
 
@@ -173,7 +183,13 @@ Copy `.env.example` to `.env` and fill in the values. The most important keys:
 | `SITE_URL` | Optional fixed domain used by `robots.txt`/`sitemap.xml`/social tags |
 | `NEWSDATA_API_KEY` | Optional NewsData.io key for automatic news fetching |
 | `SEED_SAMPLE_CONTENT` | `true` on Render: auto-seeds the sample portfolio case studies + 6 SEO guide articles on boot (idempotent by slug) |
-| `GOOGLE_REVIEW_URL` | Your Google Business Profile review link (`https://g.page/r/XXXX/review`); powers the review CTAs. Falls back to a Google Maps search if unset |
+| `GOOGLE_REVIEW_URL` | Your Google Business Profile review link (`https://g.page/r/XXXX/review`); powers the review CTAs |
+| `AI_PROVIDER` | `gemini` (default) or `openai_compatible` (Groq, OpenRouter, Together, local server) |
+| `AI_API_KEY` | Provider key. The AI Studio is disabled without it |
+| `AI_MODEL` | Model id, e.g. `gemini-2.5-flash` |
+| `AI_BASE_URL` | Base URL for `openai_compatible` (default `https://api.groq.com/openai/v1`) |
+| `AI_TIMEOUT` | Provider timeout in seconds (default 90; keep below the 120s gunicorn timeout) |
+| `AI_AUTO_PUBLISH` | `true` lets queue/cron generations publish without review. Default `false` (drafts) |
 
 See `.env.example` for the full list with comments.
 
@@ -215,6 +231,47 @@ safely by the `article_html` filter (everything HTML-escaped first):
 
 FAQs for the seeded articles live in `seed_data.py` and render as a visible
 accordion plus FAQPage JSON-LD on the article page.
+
+### AI Content Studio
+
+`/admin/ai` generates guide articles from a topic. It is provider-agnostic and
+SDK-free (`ai_service.py` uses `requests`):
+
+- **Gemini** (default): set `AI_API_KEY`, optionally `AI_MODEL`
+  (`gemini-2.5-flash` by default).
+- **Any OpenAI-compatible endpoint**: `AI_PROVIDER=openai_compatible`,
+  `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY` (e.g. Groq, OpenRouter, a local
+  llama.cpp server).
+
+Behaviour and guardrails:
+
+- Generated articles are **drafts by default**; publishing requires either the
+  "Publish immediately" checkbox or `AI_AUTO_PUBLISH=true` for the queue/cron.
+- The prompt is grounded in the workshop's real services, service areas and
+  Naira price ranges, and explicitly forbids invented certifications/statistics.
+- Output is parsed as strict JSON (title, meta description, body, FAQs) and
+  rendered through the escaped `article_html` filter — model output cannot
+  inject HTML.
+- Each article gets a unique slug, FAQ rows and an `FAQPage` schema; every call
+  is logged in `AiGeneration` and throttled to 6 per 10 minutes per admin.
+- Admin routes only, CSRF-protected, API key never rendered in a template.
+
+Scheduled generation (Render Cron Job or any scheduler):
+
+```bash
+python scripts/generate_ai_drafts.py --limit 1          # drafts
+python scripts/generate_ai_drafts.py --limit 1 --publish # publish immediately
+```
+
+Add topics in the AI Studio queue, then let the cron job work through them.
+Generation calls can take 15–60 seconds, so the gunicorn timeout is raised to
+120s in `Procfile` and `render.yaml`.
+
+To run it on Render: **New → Cron Job**, same repo, command
+`python scripts/generate_ai_drafts.py --limit 1`, schedule e.g. `0 6 * * 1`
+(Mondays 06:00), and copy the same environment variables as the web service
+(especially `DATABASE_URL`, `AI_API_KEY`, `SECRET_KEY`). The cron job talks to
+the same database, so drafts appear in the admin Content list.
 
 ### Admin User
 

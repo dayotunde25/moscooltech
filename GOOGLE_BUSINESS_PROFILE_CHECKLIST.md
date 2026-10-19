@@ -35,24 +35,26 @@ Cost: free.
 
 ## 3. Location & service area
 
-- [ ] Address: enter your real business address in Lagos Mainland. If you work
-      from home / don't want a public storefront, tick **"I deliver goods and
-      services to my customers"** and clear "Show my address" so the profile
-      shows your service area instead
+- [ ] Address: **16, Oredegbe Street, Off Ogundele Street, Agbado Station,
+      Ifo LGA, Ogun State** — this is now published on the website, footer and
+      LocalBusiness schema, so enter it exactly the same way in the GBP.
+      If you don't want to show the exact workshop, tick **"I deliver goods and
+      services to my customers"** and clear "Show my address" so only the
+      service area is shown — but keep the same address on file.
 - [ ] Service areas (add as many as you genuinely serve — the website now
       targets these):
-      - Lagos Mainland (and specific areas: Ikeja, Yaba, Surulere, Maryland,
-        Gbagada, Ogba)
-      - Ogun State (Magboro, Mowe, Ibafo, Abeokuta if served)
-- [ ] Match the website: your site now says "Lagos Mainland & Ogun State" —
-      keep both profiles consistent
+      - Ogun State (Agbado, Ifo, Magboro, Mowe, Ibafo, Arepo, OPIC)
+      - Lagos Mainland (Ikeja, Yaba, Surulere, Maryland, Gbagada, Ogba)
+- [ ] Match the website: the site now says "Lagos Mainland & Ogun State" and
+      publishes the Agbado Station address — keep both profiles consistent
 
 ## 4. Contact details (must match the website exactly)
 
 - [ ] Phone: **+234 903 315 0460** (same number as the website so Google
       correlates the signals)
-- [ ] Website: your site URL (e.g. `https://moscooltech.onrender.com` or your
-      custom domain if you set SITE_URL)
+- [ ] Website: `https://moscooltech.onrender.com` for now — switch it to the
+      custom domain as soon as it is live (a `.com.ng` or `.com`), and set
+      `SITE_URL` in Render at the same time.
 - [ ] WhatsApp: add it in the "Chat" / messaging section if available
 - [ ] Hours:
       - Mon–Fri: 8:00 AM – 6:00 PM

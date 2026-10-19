@@ -1,0 +1,268 @@
+{% extends "admin_base.html" %}
+
+{% block title %}AI Studio{% endblock %}
+{% block page_title %}AI Content Studio{% endblock %}
+{% block page_subtitle %}Generate guide articles as drafts, review, then publish{% endblock %}
+{% block topbar_actions %}
+    <a href="{{ url_for('admin_posts') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-folder-open me-1"></i>All content
+    </a>
+{% endblock %}
+
+{% block content %}
+{% if not configured %}
+    <div class="alert alert-warning">
+        <h2 class="h6 fw-bold"><i class="fas fa-plug me-1"></i>AI is not connected yet</h2>
+        <p class="small mb-2">Add these environment variables on Render (or your <code>.env</code>), then redeploy:</p>
+        <div class="ai-prompt">AI_PROVIDER=gemini
+AI_API_KEY=your-key-here
+AI_MODEL=gemini-2.5-flash
+# optional: AI_AUTO_PUBLISH=false</div>
+        <p class="small mb-0 mt-2">
+            Any OpenAI-compatible endpoint (Groq, OpenRouter, Together, a local server) also works:
+            set <code>AI_PROVIDER=openai_compatible</code>, <code>AI_BASE_URL</code> and <code>AI_MODEL</code>.
+        </p>
+    </div>
+{% endif %}
+
+{% if rate_limited %}
+    <div class="alert alert-info">
+        You have hit the generation limit for this 10-minute window. You can still edit drafts and manage the queue.
+    </div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <div class="card stat-card">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold"><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i>Generate an article</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin_ai_generate') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="topic" class="form-label small fw-semibold">Topic *</label>
+                        <input type="text" class="form-control" id="topic" name="topic" maxlength="300" required
+                               placeholder="e.g. How much does it cost to install a 1.5HP split AC in Lagos?">
+                        <div class="form-text">Be specific. Prices, locations and appliance types produce better articles.</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="keyword" class="form-label small fw-semibold">Primary keyword</label>
+                            <input type="text" class="form-control" id="keyword" name="keyword" maxlength="200"
+                                   placeholder="AC installation cost Lagos">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="category" class="form-label small fw-semibold">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="guides" selected>Guides &amp; tips</option>
+                                <option value="air-conditioning">Air conditioning</option>
+                                <option value="refrigeration">Refrigeration</option>
+                                <option value="solar">Solar</option>
+                                <option value="inverters">Inverters</option>
+                                <option value="electrical">Electrical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="tone" class="form-label small fw-semibold">Tone</label>
+                            <select class="form-select" id="tone" name="tone">
+                                <option value="practical" selected>Practical</option>
+                                <option value="conversational">Conversational</option>
+                                <option value="technical">Technical</option>
+                                <option value="sales">Sales-led</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="target_words" class="form-label small fw-semibold">Approx. words</label>
+                            <input type="number" class="form-control" id="target_words" name="target_words"
+                                   value="1200" min="600" max="2000" step="100">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="faq_count" class="form-label small fw-semibold">FAQs</label>
+                            <input type="number" class="form-control" id="faq_count" name="faq_count"
+                                   value="4" min="0" max="6">
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="publish" name="publish">
+                        <label class="form-check-label small" for="publish">
+                            Publish immediately (skip review)
+                        </label>
+                        <div class="form-text">Leave unchecked to save a draft. Reviewing AI drafts before publishing is strongly recommended.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mt-3"
+                            {% if not configured or rate_limited %}disabled{% endif %}>
+                        <i class="fas fa-bolt me-1"></i>Generate draft
+                    </button>
+                    <span class="small text-muted ms-2">Generation can take 15&ndash;60 seconds.</span>
+                </form>
+            </div>
+        </div>
+
+        <div class="card stat-card mt-3">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0 fw-bold"><i class="fas fa-layer-group me-2 text-primary"></i>Topic queue</h2>
+                <span class="badge bg-primary">{{ queued }} queued</span>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    Queue topics now and generate them later, one at a time. A scheduled job can also work
+                    through this queue: <code>python scripts/generate_ai_drafts.py --limit 1</code>.
+                </p>
+
+                <form method="POST" action="{{ url_for('admin_ai_topic_add') }}" class="row g-2 align-items-end mb-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="col-md-7">
+                        <label for="queue_topic" class="form-label small fw-semibold">Topic</label>
+                        <input type="text" class="form-control form-control-sm" id="queue_topic" name="topic"
+                               maxlength="300" required placeholder="Cold room setup cost for a small food business">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="queue_keyword" class="form-label small fw-semibold">Keyword (optional)</label>
+                        <input type="text" class="form-control form-control-sm" id="queue_keyword" name="keyword"
+                               maxlength="200" placeholder="cold room cost Nigeria">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i>Add to queue
+                        </button>
+                    </div>
+                </form>
+
+                {% if topics %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Topic</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for topic in topics %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold small">{{ topic.topic }}</div>
+                                            {% if topic.keyword %}
+                                                <div class="text-muted" style="font-size:.75rem;">{{ topic.keyword }}</div>
+                                            {% endif %}
+                                            {% if topic.error %}
+                                                <div class="text-danger" style="font-size:.75rem;">{{ topic.error }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if topic.status == 'generated' else ('danger' if topic.status == 'failed' else 'secondary') }}">
+                                                {{ topic.status }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            {% if topic.status != 'generated' %}
+                                                <form method="POST" action="{{ url_for('admin_ai_topic_generate', topic_id=topic.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                            {% if not configured or rate_limited %}disabled{% endif %}>
+                                                        Generate
+                                                    </button>
+                                                </form>
+                                            {% elif topic.post_id %}
+                                                <a href="{{ url_for('admin_edit_post', post_id=topic.post_id) }}"
+                                                   class="btn btn-sm btn-outline-secondary">Open draft</a>
+                                            {% endif %}
+                                            <form method="POST" action="{{ url_for('admin_ai_topic_delete', topic_id=topic.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove topic">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-0">The queue is empty. Add topics you want covered over the next few weeks.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold"><i class="fas fa-shield-halved me-2 text-primary"></i>How this protects quality</h2>
+            </div>
+            <div class="card-body small text-muted">
+                <ul class="mb-0 ps-3">
+                    <li class="mb-2">Drafts are created unpublished by default, so nothing goes live without a human review.</li>
+                    <li class="mb-2">The prompt is grounded in your real services, service areas and Naira price ranges &mdash; and forbids invented certifications or statistics.</li>
+                    <li class="mb-2">Generated text is plain text rendered through the escaped <code>article_html</code> filter; it cannot inject HTML.</li>
+                    <li class="mb-2">Every successful article gets FAQ schema and a unique slug automatically.</li>
+                    <li>All calls are admin-only, CSRF-protected and throttled to 6 per 10 minutes per user.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold"><i class="fas fa-microchip me-2 text-primary"></i>Provider</h2>
+            </div>
+            <div class="card-body small">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Status</span>
+                    <span class="fw-semibold {% if configured %}text-success{% else %}text-danger{% endif %}">
+                        {{ 'Connected' if configured else 'Not configured' }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Provider</span><span class="fw-semibold">{{ provider }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Model</span><span class="fw-semibold">{{ model }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Auto-publish queue</span>
+                    <span class="fw-semibold">{{ 'Yes' if auto_publish else 'No (drafts)' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card stat-card">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold"><i class="fas fa-clock-rotate-left me-2 text-primary"></i>Recent generations</h2>
+            </div>
+            <div class="card-body p-0">
+                {% if generations %}
+                    <ul class="list-group list-group-flush">
+                        {% for run in generations %}
+                            <li class="list-group-item small">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <span class="text-truncate" style="max-width: 70%;">{{ run.topic }}</span>
+                                    <span class="ai-log-{{ 'success' if run.status == 'success' else 'error' }} text-nowrap">
+                                        <i class="fas fa-{{ 'circle-check' if run.status == 'success' else 'triangle-exclamation' }} me-1"></i>{{ run.status }}
+                                    </span>
+                                </div>
+                                <div class="text-muted" style="font-size:.75rem;">
+                                    {{ run.created_at.strftime('%b %d, %H:%M') }}
+                                    {% if run.duration_ms %} &middot; {{ (run.duration_ms / 1000)|round(1) }}s{% endif %}
+                                    {% if run.post_id %}
+                                        &middot; <a href="{{ url_for('admin_edit_post', post_id=run.post_id) }}" class="text-decoration-none">open draft</a>
+                                    {% endif %}
+                                    {% if run.error %}<br><span class="text-danger">{{ run.error }}</span>{% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="p-3 text-muted small">No generations yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

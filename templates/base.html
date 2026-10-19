@@ -5,16 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Moscool Technical Services{% endblock %}</title>
 
-    <!-- SEO: meta description, canonical, Open Graph -->
+    <!-- SEO: meta description, keywords, canonical, Open Graph -->
     {% block meta_description %}<meta name="description" content="Moscool Technical Services — expert AC repair, refrigeration, solar panel, inverter and electrical installation in Lagos Mainland & Ogun State, Nigeria. Call 24/7 for emergency service.">{% endblock %}
-    {% block canonical %}<link rel="canonical" href="{{ request.base_url }}">{% endblock %}
+    {% block meta_keywords %}<meta name="keywords" content="AC repair Lagos, air conditioning installation Lagos, refrigerator repair Lagos, solar panel installation Nigeria, inverter installation Lagos, electrical services Ogun State">{% endblock %}
+    {% block canonical %}<link rel="canonical" href="{{ (config.get('SITE_URL') or request.url_root).rstrip('/') }}{{ request.path }}">{% endblock %}
+
+    <!-- Icons / favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon-32.png') }}" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+
+    <!-- Performance: warm up CDN connections used by the page -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://images.unsplash.com">
     {% block social_meta %}
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:site_name" content="Moscool Technical Services">
-    <meta property="og:title" content="{% block og_title %}Moscool Technical Services{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Expert AC repair, refrigeration, solar, inverter and electrical services in Lagos Mainland & Ogun State, Nigeria. Available 24/7.{% endblock %}">
-    <meta property="og:url" content="{{ request.base_url }}">
+    <meta property="og:url" content="{{ (config.get('SITE_URL') or request.url_root).rstrip('/') }}{{ request.path }}">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ self.og_title() }}">
+    <meta name="twitter:description" content="{{ self.og_description() }}">
     <meta property="og:image" content="{{ request.url_root }}static/img/og-image.png">
     <meta name="twitter:image" content="{{ request.url_root }}static/img/og-image.png">
     {% block og_image %}{% endblock %}
@@ -22,9 +35,23 @@
     {% block json_ld %}{% endblock %}
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Icon font is non-critical: load it without blocking first paint (swapped in by main.js) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+          media="print" data-defer-css>
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     {% block extra_head %}{% endblock %}
+
+    {% if config.get('GA_MEASUREMENT_ID') %}
+    <!-- Analytics: Google Analytics 4 (only emitted when GA_MEASUREMENT_ID is set) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config.get('GA_MEASUREMENT_ID') }}" nonce="{{ g.csp_nonce }}"></script>
+    <script nonce="{{ g.csp_nonce }}">
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ config.get('GA_MEASUREMENT_ID') }}');
+    </script>
+    {% endif %}
 </head>
 <body>
     <!-- Header -->
@@ -35,11 +62,11 @@
                 <div class="d-flex align-items-center gap-4">
                     <div class="d-flex align-items-center gap-1 text-muted">
                         <i class="fas fa-phone"></i>
-                        <span>+234(90)33150460</span>
+                        <a href="tel:+2349033150460" class="text-decoration-none text-muted">+234 903 315 0460</a>
                     </div>
                     <div class="d-flex align-items-center gap-1 text-muted">
                         <i class="fas fa-envelope"></i>
-                        <span>dayotunde25@gmail.com</span>
+                        <a href="mailto:dayotunde25@gmail.com" class="text-decoration-none text-muted">dayotunde25@gmail.com</a>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-1 text-muted">
@@ -80,6 +107,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a href="/guides" class="nav-link px-3 py-2 rounded-pill text-dark fw-medium position-relative nav-hover">
+                                <i class="fas fa-book-open me-1"></i>Guides
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="/marketplace" class="nav-link px-3 py-2 rounded-pill text-dark fw-medium position-relative nav-hover">
                                 <i class="fas fa-shopping-cart me-1"></i>Marketplace
                             </a>
@@ -113,9 +145,9 @@
             <!-- Mobile Menu Offcanvas -->
             <div class="offcanvas offcanvas-end d-lg-none" tabindex="-1" id="mobileMenu">
                 <div class="offcanvas-header bg-primary text-white">
-                    <h5 class="offcanvas-title fw-bold">
+                    <div class="offcanvas-title fw-bold h5 mb-0">
                         <i class="fas fa-tools me-2"></i>Moscool Tech
-                    </h5>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
                 </div>
                 <div class="offcanvas-body">
@@ -131,6 +163,9 @@
                         </a>
                         <a href="/#portfolio" class="nav-link py-3 border-bottom">
                             <i class="fas fa-briefcase me-3 text-primary"></i>Portfolio
+                        </a>
+                        <a href="/guides" class="nav-link py-3 border-bottom">
+                            <i class="fas fa-book-open me-3 text-primary"></i>Guides
                         </a>
                         <a href="/marketplace" class="nav-link py-3 border-bottom">
                             <i class="fas fa-shopping-cart me-3 text-primary"></i>Marketplace
@@ -175,13 +210,13 @@
             <div class="row g-4">
                 <!-- Company Info -->
                 <div class="col-lg-3 col-md-6">
-                    <h5 class="text-primary mb-3">Moscool Technical Services</h5>
+                    <h2 class="h5 text-primary mb-3">Moscool Technical Services</h2>
                     <p class="text-muted mb-3">
                         Professional AC repair, refrigeration, solar, inverter, and electrical services
                         across Lagos Mainland and Ogun State, Nigeria. Licensed, insured, and available 24/7.
                     </p>
                     <div class="d-flex gap-3">
-                        <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                        <a href="{{ config.get('GOOGLE_REVIEW_URL') }}"
                            target="_blank" rel="noopener noreferrer" class="text-warning" title="Leave us a Google review">
                             <i class="fab fa-google fa-lg"></i>
                         </a>
@@ -214,7 +249,7 @@
 
                 <!-- Services -->
                 <div class="col-lg-2 col-md-6">
-                    <h6 class="mb-3">Our Services</h6>
+                    <h3 class="h6 mb-3">Our Services</h3>
                     <ul class="list-unstyled text-muted">
                         <li class="mb-2"><a href="{{ url_for('home') }}#services" class="text-decoration-none text-muted">Refrigeration</a></li>
                         <li class="mb-2"><a href="{{ url_for('home') }}#services" class="text-decoration-none text-muted">Air Conditioning</a></li>
@@ -227,12 +262,14 @@
 
                 <!-- Quick Links -->
                 <div class="col-lg-2 col-md-6">
-                    <h6 class="mb-3">Quick Links</h6>
+                    <h3 class="h6 mb-3">Quick Links</h3>
                     <ul class="list-unstyled text-muted">
                         <li class="mb-2"><a href="{{ url_for('home') }}" class="text-decoration-none text-muted">Home</a></li>
                         <li class="mb-2"><a href="{{ url_for('home') }}#services" class="text-decoration-none text-muted">Services</a></li>
                         <li class="mb-2"><a href="{{ url_for('home') }}#about" class="text-decoration-none text-muted">About Us</a></li>
                         <li class="mb-2"><a href="{{ url_for('home') }}#contact" class="text-decoration-none text-muted">Contact</a></li>
+                        <li class="mb-2"><a href="{{ url_for('guides') }}" class="text-decoration-none text-muted">Guides &amp; Tips</a></li>
+                        <li class="mb-2"><a href="{{ url_for('home') }}#service-areas" class="text-decoration-none text-muted">Service Areas</a></li>
                         <li class="mb-2"><a href="tel:+2349033150460" class="text-decoration-none text-muted">Emergency Service</a></li>
                         <li class="mb-2"><a href="{{ url_for('home') }}#contact" class="text-decoration-none text-muted">Get Quote</a></li>
                     </ul>
@@ -240,19 +277,25 @@
 
                 <!-- Contact Info -->
                 <div class="col-lg-3 col-md-6">
-                    <h6 class="mb-3">Contact Info</h6>
+                    <h3 class="h6 mb-3">Contact Info</h3>
                     <div class="text-muted">
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-phone me-2"></i>
-                            <span>+234(90)33150460</span>
+                            <a href="tel:+2349033150460" class="text-decoration-none text-muted">+234 903 315 0460</a>
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-envelope me-2"></i>
-                            <span>dayotunde25@gmail.com</span>
+                            <a href="mailto:dayotunde25@gmail.com" class="text-decoration-none text-muted">dayotunde25@gmail.com</a>
                         </div>
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-map-marker-alt me-2"></i>
-                            <span>Lagos Mainland & Ogun State, Nigeria</span>
+                        <div class="d-flex align-items-start mb-2">
+                            <i class="fas fa-map-marker-alt me-2 mt-1"></i>
+                            <span>
+                                {% if config.get('BUSINESS_ADDRESS') %}
+                                    {{ config.get('BUSINESS_ADDRESS') }}<br>
+                                    {{ config.get('BUSINESS_LOCALITY') }}, {{ config.get('BUSINESS_REGION') }}, Nigeria<br>
+                                {% endif %}
+                                <span class="small">Serving Lagos Mainland &amp; Ogun State</span>
+                            </span>
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-clock me-2"></i>
@@ -260,7 +303,7 @@
                         </div>
                         <div class="d-flex align-items-center mb-2">
                             <i class="fas fa-star me-2 text-warning"></i>
-                            <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                            <a href="{{ config.get('GOOGLE_REVIEW_URL') }}"
                                target="_blank" rel="noopener noreferrer" class="text-decoration-none text-muted">
                                 Leave a Google review
                             </a>

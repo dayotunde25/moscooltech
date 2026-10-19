@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}AC, Solar & Refrigeration Guides | Moscool Tech{% endblock %}
+{% block meta_description %}<meta name="description" content="Practical guides on AC repair costs in Lagos, solar and inverter sizing for Nigerian homes, and refrigerator maintenance — written by working technicians.">{% endblock %}
+{% block meta_keywords %}<meta name="keywords" content="AC repair cost Lagos, solar panel installation guide Nigeria, inverter sizing guide, refrigerator repair tips Lagos, HVAC maintenance Nigeria">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ (config.get('SITE_URL') or request.url_root).rstrip('/') }}/guides">{% endblock %}
+{% block og_title %}AC, Solar & Refrigeration Guides - Moscool Tech{% endblock %}
+{% block og_description %}Practical, price-aware guides on AC repair, solar, inverters and refrigeration in Lagos and Ogun State, Nigeria.{% endblock %}
+{% block json_ld %}
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Guides & Tips - Moscool Technical Services",
+  "description": "Practical guides on AC repair, solar, inverters and refrigeration in Lagos and Ogun State, Nigeria.",
+  "url": "{{ (config.get('SITE_URL') or request.url_root).rstrip('/') }}/guides"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-primary text-white">
+    <div class="container-fluid px-4">
+        <div class="text-center">
+            <h1 class="display-5 fw-bold mb-3">
+                <i class="fas fa-book-open me-3"></i>Guides &amp; Tips
+            </h1>
+            <p class="lead mb-0">
+                Straight answers on AC repair costs, solar sizing, inverters and refrigeration &mdash;
+                written by technicians working across Lagos Mainland and Ogun State.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container-fluid px-4">
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-9">
+                <p class="text-muted mb-0">
+                    Every guide below is based on jobs we actually run: realistic Naira price ranges,
+                    the faults we see most in Lagos, and the questions to ask before you pay a deposit.
+                    Start with the AC repair cost guide if your unit has stopped cooling, or the solar
+                    guide if you are sizing a system for your home or business.
+                </p>
+            </div>
+        </div>
+
+        {% if articles %}
+            <div class="row g-4">
+                {% for post in articles %}
+                    <div class="col-lg-4 col-md-6">
+                        <article class="card h-100 border-0 shadow-sm">
+                            {% if post.image_url %}
+                                <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}"
+                                     width="600" height="338" loading="lazy" decoding="async"
+                                     class="card-img-top card-img-cover">
+                            {% endif %}
+                            <div class="card-body d-flex flex-column">
+                                <small class="text-muted mb-2">
+                                    <i class="fas fa-book-open me-1"></i>Guide
+                                    <span class="mx-1">&middot;</span>
+                                    {{ post.created_at.strftime('%b %d, %Y') }}
+                                </small>
+                                <h2 class="h6 card-title fw-bold">{{ post.title }}</h2>
+                                <p class="card-text text-muted small flex-grow-1">
+                                    {{ post.meta_description or post.content[:140] }}
+                                </p>
+                                <a href="{{ url_for('post_detail', post_id=post.id) }}"
+                                   class="btn btn-outline-primary btn-sm align-self-start mt-2">
+                                    Read guide <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </article>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <p class="text-muted mb-4">Guides are being published soon. In the meantime, call us for advice.</p>
+                <a href="{{ url_for('home') }}#contact" class="btn btn-primary">Contact us</a>
+            </div>
+        {% endif %}
+
+        <div class="row justify-content-center mt-5">
+            <div class="col-lg-8">
+                <div class="p-4 bg-light rounded">
+                    <h2 class="h5 fw-bold mb-2">Need a technician, not a guide?</h2>
+                    <p class="text-muted mb-3">
+                        We repair and install ACs, fridges, cold rooms, solar and inverter systems across
+                        Lagos Mainland and Ogun State.
+                    </p>
+                    <div class="d-flex flex-column flex-sm-row gap-2">
+                        <a href="tel:+2349033150460" class="btn btn-primary">
+                            <i class="fas fa-phone me-2"></i>Call +234 903 315 0460
+                        </a>
+                        <a href="{{ url_for('home') }}#contact" class="btn btn-outline-primary">
+                            <i class="fas fa-envelope me-2"></i>Request a quote
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -30,6 +30,7 @@
         </div>
     </nav>
 
+    {% include '_flash.html' %}
     <div class="container-fluid py-4">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -84,7 +85,11 @@
                                         <option value="sale" {% if post and post.post_type == 'sale' %}selected{% endif %}>
                                             For Sale
                                         </option>
+                                        <option value="article" {% if post and post.post_type == 'article' %}selected{% endif %}>
+                                            Guide / Article
+                                        </option>
                                     </select>
+                                    <div class="form-text">Guides appear on the homepage and the /guides hub.</div>
                                 </div>
 
                                 <!-- Image URL -->
@@ -164,8 +169,26 @@
                                 <!-- Content -->
                                 <div class="col-12">
                                     <label for="content" class="form-label fw-bold">Content *</label>
-                                    <textarea class="form-control" id="content" name="content" rows="8" required>{% if post %}{{ post.content }}{% endif %}</textarea>
+                                    <textarea class="form-control" id="content" name="content" rows="14" maxlength="20000" required>{% if post %}{{ post.content }}{% endif %}</textarea>
+                                    <div class="form-text">
+                                        For guides: <code>## Heading</code> becomes an H2, <code>### </code> an H3,
+                                        <code>- </code> a bullet list, and <code>**bold**</code> is supported.
+                                    </div>
                                 </div>
+
+                                {% if post %}
+                                <!-- FAQs (guides) -->
+                                <div class="col-12">
+                                    <label for="faqs_json" class="form-label fw-bold">FAQs (JSON)</label>
+                                    <input type="hidden" name="faqs_present" value="1">
+                                    <textarea class="form-control font-monospace" id="faqs_json" name="faqs_json" rows="7"
+                                              placeholder='[{"q": "Question?", "a": "Answer."}]'>{% if post_faqs %}[{% for faq in post_faqs %}{"q": {{ faq.question|tojson }}, "a": {{ faq.answer|tojson }}}{{ "," if not loop.last else "" }}{% endfor %}]{% endif %}</textarea>
+                                    <div class="form-text">
+                                        Optional. These render as an accordion on guide pages and are emitted as
+                                        FAQPage schema. Leave empty to remove all FAQs. Invalid JSON is rejected.
+                                    </div>
+                                </div>
+                                {% endif %}
 
                                 <!-- Published -->
                                 <div class="col-12">

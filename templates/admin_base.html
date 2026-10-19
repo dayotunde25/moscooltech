@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} - Moscool CRM</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="admin-body">
+<div class="admin-shell">
+
+    <!-- Sidebar (static on desktop, offcanvas on mobile) -->
+    <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminMenu">
+        <div class="offcanvas-header admin-sidebar-header">
+            <span class="admin-brand">
+                <i class="fas fa-tools me-2"></i>Moscool CRM
+            </span>
+            <button type="button" class="btn-close btn-close-white d-lg-none"
+                    data-bs-dismiss="offcanvas" data-bs-target="#adminMenu" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body admin-sidebar-body">
+            <nav class="nav flex-column admin-nav">
+                <a class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}"
+                   href="{{ url_for('admin_dashboard') }}">
+                    <i class="fas fa-chart-pie fa-fw me-2"></i>Dashboard
+                </a>
+                <a class="nav-link {% if request.endpoint in ('admin_leads', 'admin_lead_detail') %}active{% endif %}"
+                   href="{{ url_for('admin_leads') }}">
+                    <i class="fas fa-users fa-fw me-2"></i>CRM Leads
+                </a>
+                <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_ai') %}active{% endif %}"
+                   href="{{ url_for('admin_ai') }}">
+                    <i class="fas fa-wand-magic-sparkles fa-fw me-2"></i>AI Studio
+                </a>
+                <a class="nav-link {% if request.endpoint in ('admin_posts', 'admin_create_post', 'admin_edit_post') %}active{% endif %}"
+                   href="{{ url_for('admin_posts') }}">
+                    <i class="fas fa-folder-open fa-fw me-2"></i>Content
+                </a>
+                <a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_news') %}active{% endif %}"
+                   href="{{ url_for('admin_news') }}">
+                    <i class="fas fa-newspaper fa-fw me-2"></i>News Feed
+                </a>
+                <a class="nav-link {% if request.endpoint == 'admin_contacts' %}active{% endif %}"
+                   href="{{ url_for('admin_contacts') }}">
+                    <i class="fas fa-envelope fa-fw me-2"></i>Messages
+                </a>
+                <a class="nav-link {% if request.endpoint == 'admin_feedbacks' %}active{% endif %}"
+                   href="{{ url_for('admin_feedbacks') }}">
+                    <i class="fas fa-comments fa-fw me-2"></i>Feedback
+                </a>
+                <hr class="admin-nav-divider">
+                <a class="nav-link" href="{{ url_for('home') }}" target="_blank" rel="noopener">
+                    <i class="fas fa-external-link-alt fa-fw me-2"></i>View website
+                </a>
+            </nav>
+
+            <div class="admin-sidebar-footer">
+                <div class="small text-uppercase text-muted mb-2">Signed in as</div>
+                <div class="text-white small mb-3">
+                    <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                </div>
+                <form method="POST" action="{{ url_for('admin_logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-light w-100">
+                        <i class="fas fa-sign-out-alt me-1"></i>Log out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main column -->
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-light d-lg-none" type="button"
+                        data-bs-toggle="offcanvas" data-bs-target="#adminMenu" aria-label="Open menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div>
+                    <h1 class="h5 mb-0 fw-bold">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <div class="small text-muted">{% block page_subtitle %}{% endblock %}</div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% block topbar_actions %}{% endblock %}
+                <a href="{{ url_for('home') }}" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex">
+                    <i class="fas fa-globe me-1"></i>Website
+                </a>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="px-3 pt-3">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else ('info' if category == 'info' else 'danger') }} alert-dismissible fade show mb-2" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <main class="admin-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

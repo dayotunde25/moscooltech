@@ -1,0 +1,160 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ contact.name }}{% endblock %}
+{% block page_title %}{{ contact.name }}{% endblock %}
+{% block page_subtitle %}Lead #{{ contact.id }} &middot; received {{ contact.created_at.strftime('%b %d, %Y at %H:%M') }}{% endblock %}
+{% block topbar_actions %}
+    <a href="{{ url_for('admin_leads') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to pipeline
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card stat-card mb-3">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                    <div>
+                        <div class="h5 mb-1">{{ contact.name }}</div>
+                        <div class="text-muted small">
+                            <i class="fas fa-screwdriver-wrench me-1"></i>{{ contact.service_needed or 'General enquiry' }}
+                        </div>
+                    </div>
+                    <span class="badge bg-{{ statuses[lead_status.status if lead_status and lead_status.status in statuses else 'new'].colour }} fs-6">
+                        {{ statuses[lead_status.status if lead_status and lead_status.status in statuses else 'new'].label }}
+                    </span>
+                </div>
+
+                <hr>
+
+                <div class="row g-3 small">
+                    <div class="col-md-6">
+                        <div class="text-muted mb-1">Email</div>
+                        <a href="mailto:{{ contact.email }}" class="text-decoration-none">{{ contact.email }}</a>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted mb-1">Phone</div>
+                        {% if contact.phone %}
+                            <a href="tel:{{ contact.phone }}" class="text-decoration-none">{{ contact.phone }}</a>
+                        {% else %}
+                            <span class="text-muted">Not provided</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted mb-1">Estimated value</div>
+                        <span class="fw-semibold">
+                            {% if lead_status and lead_status.estimated_value %}
+                                &#8358;{{ '{:,.0f}'.format(lead_status.estimated_value) }}
+                            {% else %}
+                                &mdash;
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted mb-1">Last updated</div>
+                        <span>{{ lead_status.updated_at.strftime('%b %d, %Y %H:%M') if lead_status else 'Never' }}</span>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <a href="mailto:{{ contact.email }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-envelope me-1"></i>Email
+                    </a>
+                    {% if contact.phone %}
+                        <a href="tel:{{ contact.phone }}" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-phone me-1"></i>Call
+                        </a>
+                        {% if wa_number %}
+                            <a href="https://wa.me/{{ wa_number }}" target="_blank" rel="noopener noreferrer"
+                               class="btn btn-sm btn-outline-success">
+                                <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold">Message</h2>
+            </div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ contact.message }}</p>
+            </div>
+        </div>
+
+        <div class="card stat-card">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h2 class="h6 mb-0 fw-bold">Activity notes</h2>
+                <span class="badge bg-light text-dark">{{ notes|length }}</span>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin_lead_note', contact_id=contact.id) }}" class="mb-4">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="body" class="form-label small fw-semibold">Add a note</label>
+                    <textarea class="form-control" id="body" name="body" rows="2" maxlength="2000"
+                              placeholder="Called, quoted &#8358;45,000 for capacitor + gas, awaiting approval"></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm mt-2">
+                        <i class="fas fa-plus me-1"></i>Save note
+                    </button>
+                </form>
+
+                {% if notes %}
+                    <ul class="list-unstyled mb-0">
+                        {% for note in notes %}
+                            <li class="border-start border-3 border-primary ps-3 pb-3">
+                                <div class="small text-muted mb-1">{{ note.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+                                <div style="white-space: pre-wrap;">{{ note.body }}</div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small mb-0">No notes yet. Log what was discussed so the next visit has context.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card stat-card">
+            <div class="card-header bg-white py-3">
+                <h2 class="h6 mb-0 fw-bold">Pipeline stage</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('admin_lead_status', contact_id=contact.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+
+                    <label for="status" class="form-label small fw-semibold">Stage</label>
+                    <select class="form-select mb-3" id="status" name="status">
+                        {% for key, meta in statuses.items() %}
+                            <option value="{{ key }}"
+                                {% if lead_status and lead_status.status == key %}selected{% elif not lead_status and key == 'new' %}selected{% endif %}>
+                                {{ meta.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="estimated_value" class="form-label small fw-semibold">Estimated value (&#8358;)</label>
+                    <input type="number" class="form-control mb-1" id="estimated_value" name="estimated_value"
+                           min="0" step="1000" placeholder="e.g. 45000"
+                           value="{{ lead_status.estimated_value|int if lead_status and lead_status.estimated_value else '' }}">
+                    <div class="form-text mb-3">Used for the active pipeline total (Contacted + Quoted).</div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-check me-1"></i>Update lead
+                    </button>
+                </form>
+
+                <hr>
+                <p class="small text-muted mb-0">
+                    Tip: move a lead to <strong>Won</strong> only after payment or a signed job, and to
+                    <strong>Lost</strong> when the customer declines, so the pipeline stays honest.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

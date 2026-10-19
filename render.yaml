@@ -6,7 +6,9 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    # 120s worker timeout: AI generation calls can take 15-60s, and the default
+    # gunicorn 30s timeout would kill the request mid-generation.
+    startCommand: gunicorn app:app --timeout 120
     healthCheckPath: /
     envVars:
       - key: FLASK_ENV
@@ -27,6 +29,26 @@ services:
         sync: false
       - key: GOOGLE_REVIEW_URL
         sync: false
+      - key: GA_MEASUREMENT_ID
+        sync: false
+      - key: BUSINESS_ADDRESS
+        sync: false
+      - key: BUSINESS_PHONE
+        sync: false
+      - key: BUSINESS_EMAIL
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gemini-2.5-flash
+      - key: AI_TIMEOUT
+        value: "90"
+      - key: AI_AUTO_PUBLISH
+        value: "false"
       - key: SEED_SAMPLE_CONTENT
         value: "true"
 

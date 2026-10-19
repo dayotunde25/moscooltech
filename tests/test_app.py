@@ -278,3 +278,248 @@ def test_seeder_truncates_oversized_meta_description(client):
             if post:
                 db.session.delete(post)
                 db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# CRM: leads pipeline
+# ---------------------------------------------------------------------------
+def _make_contact(client, **overrides):
+    with client.application.app_context():
+        data = dict(name='Chinedu Okafor', email='chinedu@test.com', phone='08031234567',
+                    service_needed='AC Repair', message='Unit not cooling')
+        data.update(overrides)
+        contact = ContactSubmission(**data)
+        db.session.add(contact)
+        db.session.commit()
+        return contact.id
+
+
+def test_crm_pages_render_after_login(client, csrf):
+    login(client, csrf)
+    contact_id = _make_contact(client)
+    for path in ['/admin/leads', f'/admin/leads/{contact_id}', '/admin/ai']:
+        r = client.get(path)
+        assert r.status_code == 200, f'GET {path} -> {r.status_code}'
+        assert 'name="csrf_token"' in r.get_data(as_text=True)
+
+
+def test_lead_stage_and_notes(client, csrf):
+    login(client, csrf)
+    contact_id = _make_contact(client)
+    token = csrf(client, f'/admin/leads/{contact_id}')
+
+    r = client.post(f'/admin/leads/{contact_id}/status',
+                    data={'status': 'quoted', 'estimated_value': '45000',
+                          'csrf_token': token}, follow_redirects=True)
+    assert r.status_code == 200
+    with client.application.app_context():
+        row = app_module.LeadStatus.query.filter_by(contact_id=contact_id).first()
+        assert row is not None and row.status == 'quoted'
+        assert row.estimated_value == 45000
+
+    token = csrf(client, f'/admin/leads/{contact_id}')
+    r = client.post(f'/admin/leads/{contact_id}/notes',
+                    data={'body': 'Quoted N45,000; awaiting approval.', 'csrf_token': token},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    body = r.get_data(as_text=True)
+    assert 'Quoted N45,000' in body
+    with client.application.app_context():
+        assert app_module.LeadNote.query.filter_by(contact_id=contact_id).count() == 1
+
+
+def test_lead_status_rejects_invalid_stage(client, csrf):
+    login(client, csrf)
+    contact_id = _make_contact(client)
+    token = csrf(client, f'/admin/leads/{contact_id}')
+    client.post(f'/admin/leads/{contact_id}/status',
+                data={'status': 'hacked', 'csrf_token': token}, follow_redirects=True)
+    with client.application.app_context():
+        assert app_module.LeadStatus.query.filter_by(contact_id=contact_id).first() is None
+
+
+# ---------------------------------------------------------------------------
+# AI studio (provider mocked - no network)
+# ---------------------------------------------------------------------------
+def _fake_article():
+    return {
+        'title': 'AC Installation Cost in Lagos: 2026 Price Guide',
+        'meta_description': 'What a split AC installation costs in Lagos in 2026, by unit size, '
+                            'plus what a fair quote includes and how to avoid common upcharges.',
+        'content': '## What installation costs\n\n' + ('Concrete pricing detail. ' * 60),
+        'faqs': [{'q': 'How much is installation?', 'a': 'About N40,000 to N90,000.'},
+                 {'q': 'How long does it take?', 'a': 'Usually one day.'}],
+        'suggested_image_alt': 'Technician installing a split AC in Lagos',
+    }
+
+
+def test_ai_generate_creates_draft_with_faqs(client, csrf, monkeypatch):
+    login(client, csrf)
+    app_module.ai_request_log.clear()
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: True)
+    monkeypatch.setattr(app_module.ai_service, 'generate_article',
+                        lambda **kwargs: _fake_article())
+
+    token = csrf(client, '/admin/ai')
+    r = client.post('/admin/ai/generate',
+                    data={'topic': 'AC installation cost in Lagos', 'keyword': 'AC installation cost Lagos',
+                          'category': 'air-conditioning', 'tone': 'practical',
+                          'target_words': '1200', 'faq_count': '2', 'csrf_token': token},
+                    follow_redirects=False)
+    assert r.status_code == 302 and '/admin/posts/' in r.headers['Location']
+
+    with client.application.app_context():
+        post = Post.query.filter_by(post_type='article').order_by(Post.id.desc()).first()
+        assert post is not None
+        assert post.published is False  # drafts by default
+        assert post.slug and post.meta_description and len(post.meta_description) <= 160
+        assert app_module.PostFaq.query.filter_by(post_id=post.id).count() == 2
+        assert app_module.AiGeneration.query.filter_by(status='success').count() == 1
+
+    # Drafts are not public yet: the FAQs must be visible in the admin editor.
+    body = client.get(f'/admin/posts/{post.id}/edit').get_data(as_text=True)
+    assert 'How much is installation?' in body
+
+
+def test_ai_generate_publishes_when_requested(client, csrf, monkeypatch):
+    login(client, csrf)
+    app_module.ai_request_log.clear()
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: True)
+    monkeypatch.setattr(app_module.ai_service, 'generate_article',
+                        lambda **kwargs: _fake_article())
+    token = csrf(client, '/admin/ai')
+    client.post('/admin/ai/generate',
+                data={'topic': 'Publish test', 'publish': 'on', 'csrf_token': token})
+    with client.application.app_context():
+        post = Post.query.filter_by(post_type='article').order_by(Post.id.desc()).first()
+        assert post is not None and post.published is True
+
+
+def test_ai_generate_blocked_when_not_configured(client, csrf, monkeypatch):
+    login(client, csrf)
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: False)
+    token = csrf(client, '/admin/ai')
+    r = client.post('/admin/ai/generate',
+                    data={'topic': 'Should not be created', 'csrf_token': token},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    assert 'not configured' in r.get_data(as_text=True).lower()
+    with client.application.app_context():
+        assert Post.query.filter_by(post_type='article').count() == 0
+
+
+def test_ai_queue_topic_generates_and_links_post(client, csrf, monkeypatch):
+    login(client, csrf)
+    app_module.ai_request_log.clear()
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: True)
+    monkeypatch.setattr(app_module.ai_service, 'generate_article',
+                        lambda **kwargs: _fake_article())
+    with client.application.app_context():
+        topic = app_module.ContentTopic(topic='Cold room cost', keyword='cold room cost Nigeria')
+        db.session.add(topic)
+        db.session.commit()
+        topic_id = topic.id
+
+    token = csrf(client, '/admin/ai')
+    r = client.post(f'/admin/ai/topics/{topic_id}/generate',
+                    data={'csrf_token': token}, follow_redirects=False)
+    assert r.status_code == 302
+    with client.application.app_context():
+        topic = db.session.get(app_module.ContentTopic, topic_id)
+        assert topic.status == 'generated' and topic.post_id is not None
+        assert Post.query.filter_by(post_type='article').count() == 1
+
+
+def test_ai_failure_is_logged_and_no_post_created(client, csrf, monkeypatch):
+    login(client, csrf)
+    app_module.ai_request_log.clear()
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: True)
+
+    def boom(**kwargs):
+        raise app_module.ai_service.AiError('Provider exploded safely.')
+
+    monkeypatch.setattr(app_module.ai_service, 'generate_article', boom)
+    token = csrf(client, '/admin/ai')
+    r = client.post('/admin/ai/generate',
+                    data={'topic': 'Failure case', 'csrf_token': token},
+                    follow_redirects=True)
+    assert 'Provider exploded safely.' in r.get_data(as_text=True)
+    with client.application.app_context():
+        assert Post.query.filter_by(post_type='article').count() == 0
+        assert app_module.AiGeneration.query.filter_by(status='error').count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Manual FAQ editing on an existing guide
+# ---------------------------------------------------------------------------
+def test_admin_can_replace_faqs_on_a_post(client, csrf):
+    login(client, csrf)
+    with client.application.app_context():
+        user = User.query.filter_by(username='admin').first()
+        post = Post(title='FAQ Edit Probe', slug='faq-edit-probe', content='## Body\n\nText',
+                    meta_description='desc', post_type='article', published=True,
+                    author_id=user.id)
+        db.session.add(post)
+        db.session.commit()
+        post_id = post.id
+
+    token = csrf(client, f'/admin/posts/{post_id}/edit')
+    faqs_json = '[{"q": "New question?", "a": "New answer."}]'
+    r = client.post(f'/admin/posts/{post_id}/edit',
+                    data={'title': 'FAQ Edit Probe', 'content': '## Body\n\nText',
+                          'meta_description': 'desc', 'category': 'guides',
+                          'post_type': 'article', 'faqs_present': '1',
+                          'faqs_json': faqs_json, 'published': 'on', 'csrf_token': token},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    with client.application.app_context():
+        faqs = app_module.PostFaq.query.filter_by(post_id=post_id).all()
+        assert len(faqs) == 1 and faqs[0].question == 'New question?'
+
+    # Published guide renders the FAQ and the FAQPage structured data.
+    body = client.get(f'/post/{post_id}').get_data(as_text=True)
+    assert 'New question?' in body
+    assert '"FAQPage"' in body
+
+
+def test_admin_invalid_faq_json_is_rejected(client, csrf):
+    login(client, csrf)
+    with client.application.app_context():
+        user = User.query.filter_by(username='admin').first()
+        post = Post(title='Bad FAQ Probe', slug='bad-faq-probe', content='Body',
+                    post_type='article', published=True, author_id=user.id)
+        db.session.add(post)
+        db.session.commit()
+        post_id = post.id
+
+    token = csrf(client, f'/admin/posts/{post_id}/edit')
+    r = client.post(f'/admin/posts/{post_id}/edit',
+                    data={'title': 'Bad FAQ Probe', 'content': 'Body', 'category': 'guides',
+                          'post_type': 'article', 'faqs_present': '1',
+                          'faqs_json': 'not-json', 'csrf_token': token},
+                    follow_redirects=True)
+    assert 'FAQs must be valid JSON' in r.get_data(as_text=True)
+    with client.application.app_context():
+        assert app_module.PostFaq.query.filter_by(post_id=post_id).count() == 0
+
+
+def test_ai_generate_queued_endpoint_processes_oldest_topic(client, csrf, monkeypatch):
+    login(client, csrf)
+    app_module.ai_request_log.clear()
+    monkeypatch.setattr(app_module.ai_service, 'is_configured', lambda: True)
+    monkeypatch.setattr(app_module.ai_service, 'generate_article',
+                        lambda **kwargs: _fake_article())
+    with client.application.app_context():
+        topic = app_module.ContentTopic(topic='Oldest queued topic')
+        db.session.add(topic)
+        db.session.commit()
+        topic_id = topic.id
+
+    token = csrf(client, '/admin/ai')
+    r = client.post('/admin/ai/generate-queued', data={'csrf_token': token},
+                    follow_redirects=False)
+    assert r.status_code == 302
+    with client.application.app_context():
+        topic = db.session.get(app_module.ContentTopic, topic_id)
+        assert topic.status == 'generated'
+        assert app_module.Post.query.filter_by(post_type='article').count() == 1

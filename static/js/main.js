@@ -4,6 +4,12 @@
 
     document.addEventListener('DOMContentLoaded', function () {
 
+        /* Perf: apply non-critical stylesheets that were loaded with media="print"
+           to avoid blocking first paint (e.g. the Font Awesome icon font). */
+        document.querySelectorAll('link[data-defer-css]').forEach(function (link) {
+            link.media = 'all';
+        });
+
         /* Scroll buttons: elements with [data-scroll="#target"] smooth-scroll to an element. */
         document.querySelectorAll('[data-scroll]').forEach(function (btn) {
             btn.addEventListener('click', function () {

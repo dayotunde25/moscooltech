@@ -1,0 +1,50 @@
+{% extends "admin_base.html" %}
+
+{% block title %}CRM Leads{% endblock %}
+{% block page_title %}CRM Leads{% endblock %}
+{% block page_subtitle %}{{ total }} lead{{ '' if total == 1 else 's' }} &middot; &#8358;{{ '{:,.0f}'.format(pipeline_value) }} active pipeline{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <p class="text-muted small mb-0">
+        Every contact-form submission lands here as a lead. Open a card to update its stage, add notes and log a value.
+    </p>
+    <a href="{{ url_for('admin_contacts') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-envelope me-1"></i>Raw messages
+    </a>
+</div>
+
+<div class="kanban">
+    {% for key, meta in statuses.items() %}
+        <section class="kanban-col" id="stage-{{ key }}">
+            <div class="kanban-col-header">
+                <span><i class="fas fa-circle text-{{ meta.colour }} me-1" style="font-size:.55rem;"></i>{{ meta.label }}</span>
+                <span class="badge bg-white text-dark">{{ columns[key]|length }}</span>
+            </div>
+
+            {% for item in columns[key] %}
+                <a href="{{ url_for('admin_lead_detail', contact_id=item.contact.id) }}"
+                   class="kanban-card status-{{ key }}">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <span class="kanban-name">{{ item.contact.name }}</span>
+                        {% if item.value %}
+                            <span class="badge bg-light text-dark">&#8358;{{ '{:,.0f}'.format(item.value) }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="kanban-meta mt-1">
+                        <i class="fas fa-screwdriver-wrench me-1"></i>{{ item.contact.service_needed or 'General enquiry' }}
+                    </div>
+                    <div class="kanban-meta mt-1 d-flex justify-content-between">
+                        <span><i class="fas fa-clock me-1"></i>{{ item.contact.created_at.strftime('%b %d') }}</span>
+                        {% if item.notes %}
+                            <span><i class="fas fa-note-sticky me-1"></i>{{ item.notes }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% else %}
+                <div class="kanban-empty">No leads in this stage</div>
+            {% endfor %}
+        </section>
+    {% endfor %}
+</div>
+{% endblock %}

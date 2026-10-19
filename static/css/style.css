@@ -224,3 +224,212 @@ body {
     color: #495057;
     margin-bottom: 0.35rem;
 }
+
+/* ---------------------------------------------------------------------------
+   Media + content helpers (replaces inline style="" attributes on cards;
+   explicit sizing also keeps layout stable while images load)
+   --------------------------------------------------------------------------- */
+.card-img-cover {
+    height: 200px;
+    object-fit: cover;
+}
+.card-img-cover-lg {
+    height: 250px;
+    object-fit: cover;
+}
+.card-img-cover-sm {
+    height: 140px;
+    object-fit: cover;
+}
+.post-media {
+    max-height: 400px;
+    object-fit: cover;
+}
+.post-body-text {
+    line-height: 1.7;
+}
+
+/* ---------------------------------------------------------------------------
+   Admin CRM shell (dashboard, leads pipeline, AI studio)
+   --------------------------------------------------------------------------- */
+.admin-body {
+    background: #f3f5f9;
+}
+.admin-shell {
+    display: flex;
+    min-height: 100vh;
+}
+.admin-sidebar {
+    --bs-offcanvas-width: 260px;
+    /* !important: Bootstrap's responsive .offcanvas-lg makes the pane
+       transparent above 992px, which would hide the sidebar background. */
+    background-color: #0f172a !important;
+    color: #cbd5e1;
+    flex: 0 0 260px;
+    width: 260px;
+}
+.admin-sidebar-header {
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    padding: 1rem 1.1rem;
+}
+.admin-brand {
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: .2px;
+}
+.admin-sidebar-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+.admin-nav {
+    padding: .75rem .5rem;
+}
+.admin-nav .nav-link {
+    color: #94a3b8;
+    border-radius: .5rem;
+    padding: .6rem .8rem;
+    font-size: .92rem;
+    margin-bottom: .15rem;
+}
+.admin-nav .nav-link:hover {
+    background: #1e293b;
+    color: #fff;
+}
+.admin-nav .nav-link.active {
+    background: #1d4ed8;
+    color: #fff;
+    font-weight: 600;
+}
+.admin-nav-divider {
+    border-color: rgba(255, 255, 255, .08);
+    margin: .75rem .5rem;
+}
+.admin-sidebar-footer {
+    margin-top: auto;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.admin-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.admin-topbar {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: .8rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+.admin-content {
+    padding: 1.25rem;
+    flex: 1;
+}
+
+/* Stat cards */
+.stat-card {
+    border: 0;
+    border-radius: .75rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+    height: 100%;
+}
+.stat-card .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: .65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Kanban pipeline */
+.kanban {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(230px, 1fr));
+    gap: .9rem;
+    overflow-x: auto;
+    padding-bottom: .5rem;
+}
+.kanban-col {
+    background: #e9eef6;
+    border-radius: .75rem;
+    padding: .7rem;
+    min-height: 220px;
+}
+.kanban-col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #475569;
+    padding: .15rem .25rem .55rem;
+}
+.kanban-card {
+    display: block;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+    border-radius: .55rem;
+    padding: .7rem .75rem;
+    margin-bottom: .55rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+    border-left: 4px solid #cbd5e1;
+}
+.kanban-card:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .12);
+    color: inherit;
+}
+.kanban-card.status-new { border-left-color: #0d6efd; }
+.kanban-card.status-contacted { border-left-color: #0dcaf0; }
+.kanban-card.status-quoted { border-left-color: #ffc107; }
+.kanban-card.status-won { border-left-color: #198754; }
+.kanban-card.status-lost { border-left-color: #6c757d; }
+.kanban-card .kanban-name {
+    font-weight: 600;
+    font-size: .9rem;
+}
+.kanban-card .kanban-meta {
+    font-size: .76rem;
+    color: #64748b;
+}
+.kanban-empty {
+    border: 1px dashed #cbd5e1;
+    border-radius: .5rem;
+    padding: .9rem;
+    text-align: center;
+    font-size: .78rem;
+    color: #94a3b8;
+}
+
+/* AI studio */
+.ai-prompt {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: .6rem;
+    padding: .85rem 1rem;
+    font-size: .82rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+}
+.ai-log-success { color: #198754; }
+.ai-log-error { color: #dc3545; }
+
+@media (max-width: 991.98px) {
+    .admin-topbar { position: static; }
+    .admin-content { padding: 1rem; }
+}

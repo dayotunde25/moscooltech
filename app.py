@@ -16,9 +16,14 @@ import os
 import secrets
 import sys
 import uuid
+import json
 from dateutil import parser as date_parser
 import re
 import logging
+import time
+
+import ai_service
+from sqlalchemy import func
 
 # Security: Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,8 +50,49 @@ app.config['DEBUG'] = IS_DEVELOPMENT
 # g.page/r/XXXX/review short link from the GBP dashboard -> "Ask for reviews".
 # When unset, review CTAs on the site link to a Google Maps search for the
 # business instead (still functional, just less direct).
-GOOGLE_REVIEW_URL = os.getenv('GOOGLE_REVIEW_URL', '')
-GOOGLE_REVIEW_FALLBACK_URL = 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos'
+GOOGLE_REVIEW_URL = os.getenv('GOOGLE_REVIEW_URL', '').strip()
+# Fallback points at the actual workshop location (Agbado Station, Ifo), not a
+# generic Lagos search, so the review CTA lands on the right Google listing.
+GOOGLE_REVIEW_FALLBACK_URL = (
+    'https://www.google.com/maps/search/?api=1&query='
+    'Moscool+Technical+Services+16+Oredegbe+Street+Agbado+Station+Ifo+Ogun+State'
+)
+if not GOOGLE_REVIEW_URL:
+    GOOGLE_REVIEW_URL = GOOGLE_REVIEW_FALLBACK_URL
+
+# Public site URL used for canonical/OG/sitemap absolute URLs. Falls back to the
+# incoming request host when unset (fine for local dev, set it in production).
+SITE_URL = os.getenv('SITE_URL', '').rstrip('/')
+
+# Real-world business details (local SEO). The defaults are the verified NAP
+# (name/address/phone) for the Agbado Station workshop; override with env vars
+# if the business moves. Keeping them identical to the Google Business Profile
+# is what makes the local-pack signal work.
+BUSINESS_ADDRESS = (os.getenv('BUSINESS_ADDRESS') or
+                    '16, Oredegbe Street, Off Ogundele Street, Agbado Station').strip()
+BUSINESS_LOCALITY = (os.getenv('BUSINESS_LOCALITY') or 'Ifo').strip()
+BUSINESS_REGION = (os.getenv('BUSINESS_REGION') or 'Ogun State').strip()
+BUSINESS_PHONE = os.getenv('BUSINESS_PHONE', '+2349033150460').strip()
+BUSINESS_EMAIL = os.getenv('BUSINESS_EMAIL', 'dayotunde25@gmail.com').strip()
+
+# Google Analytics 4 measurement ID (G-XXXXXXXXXX). Analytics is only emitted
+# when set, so local/dev traffic is never reported.
+GA_MEASUREMENT_ID = os.getenv('GA_MEASUREMENT_ID', '').strip()
+
+# AI studio: queued/cron generation publishes only when explicitly enabled.
+# The admin form has its own "publish immediately" checkbox; this default is
+# for the topic queue and scripts/generate_ai_drafts.py.
+AI_AUTO_PUBLISH = os.getenv('AI_AUTO_PUBLISH', 'false').lower() in ('1', 'true', 'yes')
+
+# Expose settings to Jinja via config (templates use config.get(...))
+app.config['GOOGLE_REVIEW_URL'] = GOOGLE_REVIEW_URL
+app.config['SITE_URL'] = SITE_URL
+app.config['BUSINESS_ADDRESS'] = BUSINESS_ADDRESS
+app.config['BUSINESS_LOCALITY'] = BUSINESS_LOCALITY
+app.config['BUSINESS_REGION'] = BUSINESS_REGION
+app.config['BUSINESS_PHONE'] = BUSINESS_PHONE
+app.config['BUSINESS_EMAIL'] = BUSINESS_EMAIL
+app.config['GA_MEASUREMENT_ID'] = GA_MEASUREMENT_ID
 
 # Auto-seed sample portfolio posts + SEO articles on first boot (idempotent -
 # existing slugs are never touched). Enabled in render.yaml so a fresh deploy
@@ -210,8 +256,83 @@ class Post(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def get_canonical_url(self):
-        """Get canonical URL for SEO"""
+        """Get canonical URL for SEO (stable when SITE_URL is configured)."""
+        path = url_for('post_detail', post_id=self.id)
+        if SITE_URL:
+            return f"{SITE_URL}{path}"
         return url_for('post_detail', post_id=self.id, _external=True)
+
+
+# ---------------------------------------------------------------------------
+# CRM (leads pipeline) - extension tables only.
+#
+# These are separate 1:1/1:N tables instead of new columns on contact_submission
+# because the app runs `db.create_all()` on boot and does not use migrations:
+# adding a column to an existing PostgreSQL table would silently NOT be applied
+# and would crash every query that selects it. New tables are safe.
+# ---------------------------------------------------------------------------
+LEAD_STATUSES = {
+    'new': {'label': 'New', 'colour': 'primary'},
+    'contacted': {'label': 'Contacted', 'colour': 'info'},
+    'quoted': {'label': 'Quoted', 'colour': 'warning'},
+    'won': {'label': 'Won', 'colour': 'success'},
+    'lost': {'label': 'Lost', 'colour': 'secondary'},
+}
+
+
+class LeadStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact_submission.id'),
+                           unique=True, nullable=False, index=True)
+    status = db.Column(db.String(20), default='new', nullable=False)
+    estimated_value = db.Column(db.Float)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class LeadNote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact_submission.id'),
+                           nullable=False, index=True)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class PostFaq(db.Model):
+    """FAQs for AI-generated (or manually edited) guide articles."""
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False, index=True)
+    question = db.Column(db.String(300), nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+    position = db.Column(db.Integer, default=0)
+
+
+class ContentTopic(db.Model):
+    """Queue of topics the AI studio works through (drafts by default)."""
+    id = db.Column(db.Integer, primary_key=True)
+    topic = db.Column(db.String(300), nullable=False)
+    keyword = db.Column(db.String(200))
+    category = db.Column(db.String(100), default='guides')
+    tone = db.Column(db.String(50), default='practical')
+    target_words = db.Column(db.Integer, default=1200)
+    faq_count = db.Column(db.Integer, default=4)
+    status = db.Column(db.String(20), default='queued', index=True)  # queued|generated|failed
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+    error = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_at = db.Column(db.DateTime)
+
+
+class AiGeneration(db.Model):
+    """Audit log for every AI call (never stores the prompt or the API key)."""
+    id = db.Column(db.Integer, primary_key=True)
+    topic = db.Column(db.String(300), nullable=False)
+    provider = db.Column(db.String(30))
+    model = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='success')  # success|error
+    error = db.Column(db.String(500))
+    post_id = db.Column(db.Integer, db.ForeignKey('post.id'))
+    duration_ms = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -314,6 +435,164 @@ def sanitize_input(text, max_length=None):
         text = text[:max_length]
     return text
 
+
+# ---------------------------------------------------------------------------
+# CRM / AI helpers
+# ---------------------------------------------------------------------------
+def _slugify(title):
+    slug = title.lower().replace(' ', '-')
+    slug = re.sub(r'[^a-z0-9-]', '', slug).strip('-')
+    return slug[:240] or 'article'
+
+
+def unique_slug(title):
+    """Slug that will not collide with an existing post (Post.slug is unique)."""
+    base = _slugify(title)
+    slug = base
+    counter = 2
+    while Post.query.filter_by(slug=slug).first() is not None:
+        suffix = f'-{counter}'
+        slug = base[:240 - len(suffix)] + suffix
+        counter += 1
+    return slug
+
+
+def parse_faqs(raw):
+    """Parse a JSON list of {"q": ..., "a": ...} into (question, answer) pairs.
+
+    Raises ValueError with a user-safe message on malformed input.
+    """
+    raw = (raw or '').strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        raise ValueError('FAQs must be valid JSON.')
+    if not isinstance(data, list):
+        raise ValueError('FAQs must be a JSON list.')
+    if len(data) > 10:
+        raise ValueError('Add at most 10 FAQs.')
+    pairs = []
+    for item in data:
+        if not isinstance(item, dict):
+            raise ValueError('Each FAQ must be an object with "q" and "a".')
+        question = sanitize_input(str(item.get('q', '')), 300)
+        answer = sanitize_input(str(item.get('a', '')), 4000)
+        if not question or not answer:
+            raise ValueError('Each FAQ needs both a question and an answer.')
+        pairs.append((question, answer))
+    return pairs
+
+
+def lead_status_map(contact_ids):
+    """Return {contact_id: LeadStatus} for the given ids (empty-safe)."""
+    if not contact_ids:
+        return {}
+    rows = LeadStatus.query.filter(LeadStatus.contact_id.in_(contact_ids)).all()
+    return {row.contact_id: row for row in rows}
+
+
+# Per-user AI call throttle (in-memory, per worker). Complements admin auth and
+# keeps a stuck double-click from burning provider quota/cost.
+ai_request_log = {}
+
+def ai_is_rate_limited(user_id, max_calls=6, window_seconds=600):
+    now = datetime.now(timezone.utc)
+    calls = [t for t in ai_request_log.get(user_id, [])
+             if (now - t).total_seconds() < window_seconds]
+    ai_request_log[user_id] = calls
+    return len(calls) >= max_calls
+
+
+def record_ai_call(user_id):
+    ai_request_log.setdefault(user_id, []).append(datetime.now(timezone.utc))
+
+
+def _log_ai_failure(topic, error, started):
+    settings = ai_service.get_settings()
+    try:
+        db.session.add(AiGeneration(
+            topic=(topic or '')[:300],
+            provider=settings['provider'],
+            model=settings['model'],
+            status='error',
+            error=str(error)[:500],
+            duration_ms=int((time.monotonic() - started) * 1000),
+        ))
+        db.session.commit()
+    except Exception as exc:  # logging must never mask the original error
+        db.session.rollback()
+        logger.error(f"Could not record AI failure: {exc}")
+
+
+def generate_ai_post(topic, keyword='', category='guides', tone='practical',
+                     target_words=1200, faq_count=4, publish=False, author_id=None,
+                     source_topic=None):
+    """Generate one article and save it as a Post (+ FAQs + audit log).
+
+    Returns the created Post. Raises ai_service.AiError with a safe message.
+    """
+    started = time.monotonic()
+    settings = ai_service.get_settings()
+    try:
+        result = ai_service.generate_article(
+            topic=topic, keyword=keyword, category=category, tone=tone,
+            target_words=target_words, faq_count=faq_count,
+        )
+    except ai_service.AiError as exc:
+        _log_ai_failure(topic, exc, started)
+        if source_topic is not None:
+            source_topic.status = 'failed'
+            source_topic.error = str(exc)[:500]
+            db.session.commit()
+        raise
+
+    try:
+        post = Post(
+            title=result['title'][:200],
+            slug=unique_slug(result['title']),
+            content=result['content'],
+            meta_description=result['meta_description'][:160],
+            image_alt=result['suggested_image_alt'] or result['title'][:200],
+            category=sanitize_input(category, 100) or 'guides',
+            post_type='article',
+            published=bool(publish),
+            author_id=author_id,
+        )
+        db.session.add(post)
+        db.session.flush()  # assign post.id before creating FAQ rows
+
+        for position, faq in enumerate(result.get('faqs') or []):
+            db.session.add(PostFaq(
+                post_id=post.id,
+                question=faq['q'][:300],
+                answer=faq['a'],
+                position=position,
+            ))
+
+        db.session.add(AiGeneration(
+            topic=(topic or '')[:300],
+            provider=settings['provider'],
+            model=settings['model'],
+            status='success',
+            post_id=post.id,
+            duration_ms=int((time.monotonic() - started) * 1000),
+        ))
+
+        if source_topic is not None:
+            source_topic.status = 'generated'
+            source_topic.post_id = post.id
+            source_topic.generated_at = datetime.utcnow()
+            source_topic.error = None
+
+        db.session.commit()
+        return post
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f"Could not save AI post: {exc}")
+        raise ai_service.AiError('The article was generated but could not be saved. Check the server logs.')
+
 @app.template_filter('nl2br')
 def nl2br_filter(value):
     """Escape content and convert newlines to <br> tags (safe alternative to |safe)"""
@@ -392,11 +671,11 @@ def set_security_headers(response):
     nonce = getattr(g, 'csp_nonce', '')
     csp = (
         "default-src 'self'; "
-        f"script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'nonce-{nonce}'; "
+        f"script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com https://www.googletagmanager.com 'nonce-{nonce}'; "
         "style-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com 'unsafe-inline'; "
         "img-src 'self' data: https: unsplash.com images.unsplash.com; "
         "font-src 'self' cdnjs.cloudflare.com; "
-        "connect-src 'self'; "
+        "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; "
         "frame-ancestors 'self'; "
         "base-uri 'self'; "
         "form-action 'self';"
@@ -541,34 +820,91 @@ def post_detail(post_id):
                                  Post.published.is_(True),
                                  Post.id != post.id)
                .order_by(Post.created_at.desc()).limit(3).all())
-    # FAQs for seeded SEO articles (used for visible Q&A + FAQPage JSON-LD).
-    # Looked up by slug from seed_data so no DB column is required.
-    import seed_data
-    faqs_by_slug = {a['slug']: a['faqs'] for a in seed_data.ARTICLES if a.get('faqs')}
+    # FAQs: DB-backed (AI-generated or admin-edited) first, then the seeded
+    # articles' FAQs looked up by slug (kept for backwards compatibility).
+    db_faqs = (PostFaq.query.filter_by(post_id=post.id)
+               .order_by(PostFaq.position, PostFaq.id).all())
+    if db_faqs:
+        faqs = [{'q': faq.question, 'a': faq.answer} for faq in db_faqs]
+    else:
+        import seed_data
+        faqs_by_slug = {a['slug']: a['faqs'] for a in seed_data.ARTICLES if a.get('faqs')}
+        faqs = faqs_by_slug.get(post.slug, [])
     return render_template('post_detail.html', post=post, related_posts=related,
-                           faqs=faqs_by_slug.get(post.slug, []))
+                           faqs=faqs)
 
 @app.route('/marketplace')
 def marketplace():
     marketplace_items = Post.query.filter_by(post_type='sale', published=True).order_by(Post.created_at.desc()).all()
     return render_template('marketplace.html', marketplace_items=marketplace_items)
 
+@app.route('/guides')
+def guides():
+    """SEO: indexable hub page for all guide articles (internal linking)."""
+    articles = (Post.query.filter_by(post_type='article', published=True)
+                .order_by(Post.created_at.desc()).all())
+    return render_template('guides.html', articles=articles)
+
 @app.route('/robots.txt')
 def robots():
     """SEO: Robots.txt for search engine crawling (domain-aware)"""
-    base_url = os.getenv('SITE_URL', request.url_root).rstrip('/')
+    base_url = SITE_URL or request.url_root.rstrip('/')
     response = make_response(f"""User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /admin/*
 Disallow: /static/uploads/
+Disallow: /feedback
 Allow: /static/
 Allow: /post/
-Allow: /marketplace/
+Allow: /guides
+Allow: /marketplace
 
 Sitemap: {base_url}/sitemap.xml
 """)
     response.headers['Content-Type'] = 'text/plain'
+    return response
+
+@app.route('/llms.txt')
+def llms_txt():
+    """GEO: concise site summary for AI search engines and LLM crawlers."""
+    base_url = SITE_URL or request.url_root.rstrip('/')
+    articles = (Post.query.filter_by(post_type='article', published=True)
+                .order_by(Post.created_at.desc()).limit(20).all())
+    lines = [
+        '# Moscool Technical Services',
+        '',
+        '> AC repair, refrigeration, solar and inverter installation, and electrical services',
+        '> for homes and businesses in Lagos Mainland and Ogun State, Nigeria.',
+        '',
+        '## Services',
+        '- Air conditioning: installation, servicing, repair and duct cleaning',
+        '- Refrigeration: freezers, chillers, cold rooms and display cases',
+        '- Solar: hybrid/off-grid system design, installation and maintenance',
+        '- Inverters: installation, battery replacement and troubleshooting',
+        '- Electrical: wiring, panels, safety inspections and upgrades',
+        '',
+        '## Service areas',
+        'Lagos Mainland (Ikeja, Yaba, Surulere, Maryland, Gbagada, Ogba) and',
+        'Ogun State (Magboro, Mowe, Ibafo).',
+        '',
+        '## Contact',
+        f'- Address: {BUSINESS_ADDRESS}, {BUSINESS_LOCALITY}, {BUSINESS_REGION}, Nigeria',
+        f'- Phone / WhatsApp: {BUSINESS_PHONE}',
+        f'- Email: {BUSINESS_EMAIL}',
+        f'- Website: {base_url}/',
+        '- Hours: Mon-Fri 08:00-18:00; 24/7 emergency line',
+        '',
+        '## Key pages',
+        f'- [Home]({base_url}/)',
+        f'- [Guides and tips]({base_url}/guides)',
+        f'- [Marketplace]({base_url}/marketplace)',
+    ]
+    if articles:
+        lines += ['', '## Guides']
+        lines += [f'- [{a.title}]({a.get_canonical_url()})' for a in articles]
+    response = make_response('\n'.join(lines) + '\n')
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
     return response
 
 @app.route('/sitemap.xml')
@@ -576,22 +912,22 @@ def sitemap():
     """SEO: XML sitemap for search engines (domain-aware)"""
     try:
         posts = Post.query.filter_by(published=True).all()
-        base_url = os.getenv('SITE_URL', request.url_root).rstrip('/')
+        base_url = SITE_URL or request.url_root.rstrip('/')
+
+        # Home lastmod reflects the newest published content instead of today's
+        # date, which avoids "lastmod changes on every request" trust issues.
+        latest = max((p.updated_at or p.created_at) for p in posts) if posts else datetime.utcnow()
+        lastmod = latest.strftime('%Y-%m-%d')
 
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         
-        xml += '  <url>\n'
-        xml += f'    <loc>{base_url}/</loc>\n'
-        xml += f'    <lastmod>{datetime.utcnow().strftime("%Y-%m-%d")}</lastmod>\n'
-        xml += '    <priority>1.0</priority>\n'
-        xml += '  </url>\n'
-        
-        xml += '  <url>\n'
-        xml += f'    <loc>{base_url}/marketplace</loc>\n'
-        xml += f'    <lastmod>{datetime.utcnow().strftime("%Y-%m-%d")}</lastmod>\n'
-        xml += '    <priority>0.8</priority>\n'
-        xml += '  </url>\n'
+        for loc, priority in (('/', '1.0'), ('/marketplace', '0.8'), ('/guides', '0.8')):
+            xml += '  <url>\n'
+            xml += f'    <loc>{base_url}{loc}</loc>\n'
+            xml += f'    <lastmod>{lastmod}</lastmod>\n'
+            xml += f'    <priority>{priority}</priority>\n'
+            xml += '  </url>\n'
 
         for post in posts:
             # SEO articles are discovery content - slightly higher priority
@@ -663,15 +999,293 @@ def admin_dashboard():
     feedback_count = FeedbackSubmission.query.count()
     posts_count = Post.query.count()
 
-    recent_contacts = ContactSubmission.query.order_by(ContactSubmission.created_at.desc()).limit(5).all()
+    status_rows = LeadStatus.query.all()
+    status_by_contact = {row.contact_id: row.status for row in status_rows}
+    pipeline_counts = {key: 0 for key in LEAD_STATUSES}
+    for row in status_rows:
+        if row.status in pipeline_counts:
+            pipeline_counts[row.status] += 1
+    # Contacts without an explicit status are "new".
+    pipeline_counts['new'] += max(0, contact_count - len(status_rows))
+    pipeline_value = sum(
+        row.estimated_value or 0 for row in status_rows
+        if row.status in ('contacted', 'quoted')
+    )
+
+    recent_contacts = ContactSubmission.query.order_by(ContactSubmission.created_at.desc()).limit(6).all()
     recent_feedbacks = FeedbackSubmission.query.order_by(FeedbackSubmission.created_at.desc()).limit(5).all()
+    recent_leads = [
+        {'contact': c, 'status': status_by_contact.get(c.id, 'new')}
+        for c in recent_contacts
+    ]
 
     return render_template('admin_dashboard.html',
                          contact_count=contact_count,
                          feedback_count=feedback_count,
                          posts_count=posts_count,
+                         pipeline_counts=pipeline_counts,
+                         pipeline_value=pipeline_value,
+                         statuses=LEAD_STATUSES,
+                         recent_leads=recent_leads,
                          recent_contacts=recent_contacts,
-                         recent_feedbacks=recent_feedbacks)
+                         recent_feedbacks=recent_feedbacks,
+                         ai_configured=ai_service.is_configured(),
+                         ai_generated=AiGeneration.query.filter_by(status='success').count(),
+                         queued_topics=ContentTopic.query.filter_by(status='queued').count())
+
+
+# ---------------------------------------------------------------------------
+# CRM: leads pipeline
+# ---------------------------------------------------------------------------
+@app.route('/admin/leads')
+@require_admin
+def admin_leads():
+    contacts = (ContactSubmission.query
+                .order_by(ContactSubmission.created_at.desc()).limit(300).all())
+    statuses = lead_status_map([c.id for c in contacts])
+    note_counts = {}
+    if contacts:
+        note_counts = dict(
+            db.session.query(LeadNote.contact_id, func.count(LeadNote.id))
+            .filter(LeadNote.contact_id.in_([c.id for c in contacts]))
+            .group_by(LeadNote.contact_id).all()
+        )
+
+    items = []
+    for contact in contacts:
+        row = statuses.get(contact.id)
+        items.append({
+            'contact': contact,
+            'status': row.status if row and row.status in LEAD_STATUSES else 'new',
+            'value': row.estimated_value if row else None,
+            'notes': note_counts.get(contact.id, 0),
+        })
+    columns = {key: [i for i in items if i['status'] == key] for key in LEAD_STATUSES}
+
+    return render_template('admin_leads.html', columns=columns, statuses=LEAD_STATUSES,
+                           total=len(items), pipeline_value=sum(i['value'] or 0 for i in items
+                                                              if i['status'] in ('contacted', 'quoted')))
+
+
+@app.route('/admin/leads/<int:contact_id>')
+@require_admin
+def admin_lead_detail(contact_id):
+    contact = ContactSubmission.query.get_or_404(contact_id)
+    lead_status = LeadStatus.query.filter_by(contact_id=contact_id).first()
+    notes = (LeadNote.query.filter_by(contact_id=contact_id)
+             .order_by(LeadNote.created_at.desc()).all())
+    return render_template('admin_lead_detail.html', contact=contact, lead_status=lead_status,
+                           notes=notes, statuses=LEAD_STATUSES,
+                           wa_number=re.sub(r'\D', '', contact.phone or ''))
+
+
+@app.route('/admin/leads/<int:contact_id>/status', methods=['POST'])
+@require_admin
+def admin_lead_status(contact_id):
+    ContactSubmission.query.get_or_404(contact_id)
+    status = request.form.get('status', 'new')
+    if status not in LEAD_STATUSES:
+        flash('Choose a valid pipeline stage.', 'error')
+        return redirect(url_for('admin_lead_detail', contact_id=contact_id))
+
+    raw_value = (request.form.get('estimated_value') or '').strip()
+    value = None
+    if raw_value:
+        try:
+            value = float(raw_value)
+            if value < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            flash('Estimated value must be a positive number.', 'error')
+            return redirect(url_for('admin_lead_detail', contact_id=contact_id))
+
+    row = LeadStatus.query.filter_by(contact_id=contact_id).first()
+    if row is None:
+        row = LeadStatus(contact_id=contact_id)
+        db.session.add(row)
+    row.status = status
+    row.estimated_value = value
+    row.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+        flash('Lead updated.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f"Could not update lead {contact_id}: {exc}")
+        flash('Could not update the lead. Please try again.', 'error')
+
+    next_url = request.form.get('next', '')
+    if not next_url.startswith('/admin'):
+        next_url = url_for('admin_lead_detail', contact_id=contact_id)
+    return redirect(next_url)
+
+
+@app.route('/admin/leads/<int:contact_id>/notes', methods=['POST'])
+@require_admin
+def admin_lead_note(contact_id):
+    ContactSubmission.query.get_or_404(contact_id)
+    body = sanitize_input(request.form.get('body', ''), 2000)
+    if not body:
+        flash('Write a note before saving.', 'error')
+    else:
+        try:
+            db.session.add(LeadNote(contact_id=contact_id, body=body))
+            db.session.commit()
+            flash('Note added.', 'success')
+        except Exception as exc:
+            db.session.rollback()
+            logger.error(f"Could not add lead note: {exc}")
+            flash('Could not save the note. Please try again.', 'error')
+    return redirect(url_for('admin_lead_detail', contact_id=contact_id))
+
+
+# ---------------------------------------------------------------------------
+# AI content studio
+# ---------------------------------------------------------------------------
+@app.route('/admin/ai')
+@require_admin
+def admin_ai():
+    settings = ai_service.get_settings()
+    generations = (AiGeneration.query.order_by(AiGeneration.created_at.desc())
+                   .limit(10).all())
+    topics = (ContentTopic.query.order_by(ContentTopic.created_at.desc()).limit(25).all())
+    return render_template(
+        'admin_ai.html',
+        configured=ai_service.is_configured(),
+        provider=settings['provider'],
+        model=settings['model'],
+        auto_publish=AI_AUTO_PUBLISH,
+        generations=generations,
+        topics=topics,
+        queued=ContentTopic.query.filter_by(status='queued').count(),
+        rate_limited=ai_is_rate_limited(current_user.id),
+    )
+
+
+@app.route('/admin/ai/generate', methods=['POST'])
+@require_admin
+def admin_ai_generate():
+    topic = sanitize_input(request.form.get('topic', ''), 300)
+    keyword = sanitize_input(request.form.get('keyword', ''), 200)
+    category = sanitize_input(request.form.get('category', 'guides'), 100) or 'guides'
+    tone = sanitize_input(request.form.get('tone', 'practical'), 50) or 'practical'
+    try:
+        target_words = int(request.form.get('target_words') or 1200)
+        faq_count = int(request.form.get('faq_count') or 0)
+    except (TypeError, ValueError):
+        flash('Word count and FAQ count must be numbers.', 'error')
+        return redirect(url_for('admin_ai'))
+    target_words = max(600, min(2000, target_words))
+    faq_count = max(0, min(6, faq_count))
+    publish = request.form.get('publish') == 'on'
+
+    if not topic:
+        flash('Enter a topic first.', 'error')
+        return redirect(url_for('admin_ai'))
+    if not ai_service.is_configured():
+        flash('AI is not configured. Set AI_API_KEY in the environment.', 'error')
+        return redirect(url_for('admin_ai'))
+    if ai_is_rate_limited(current_user.id):
+        flash('Too many AI requests. Wait a few minutes before generating again.', 'error')
+        return redirect(url_for('admin_ai'))
+
+    record_ai_call(current_user.id)
+    try:
+        post = generate_ai_post(topic=topic, keyword=keyword, category=category, tone=tone,
+                                target_words=target_words, faq_count=faq_count,
+                                publish=publish, author_id=current_user.id)
+    except ai_service.AiError as exc:
+        flash(str(exc), 'error')
+        return redirect(url_for('admin_ai'))
+    except Exception as exc:  # never leak provider internals to the UI
+        logger.exception(f"Unexpected AI generation failure: {exc}")
+        flash('Generation failed unexpectedly. Check the server logs.', 'error')
+        return redirect(url_for('admin_ai'))
+
+    state = 'published' if post.published else 'saved as a draft'
+    flash(f'Article {state}: {post.title}', 'success')
+    return redirect(url_for('admin_edit_post', post_id=post.id))
+
+
+@app.route('/admin/ai/topics', methods=['POST'])
+@require_admin
+def admin_ai_topic_add():
+    topic = sanitize_input(request.form.get('topic', ''), 300)
+    if not topic:
+        flash('Enter a topic to queue.', 'error')
+        return redirect(url_for('admin_ai'))
+    try:
+        target_words = max(600, min(2000, int(request.form.get('target_words') or 1200)))
+        faq_count = max(0, min(6, int(request.form.get('faq_count') or 4)))
+    except (TypeError, ValueError):
+        target_words, faq_count = 1200, 4
+
+    db.session.add(ContentTopic(
+        topic=topic,
+        keyword=sanitize_input(request.form.get('keyword', ''), 200),
+        category=sanitize_input(request.form.get('category', 'guides'), 100) or 'guides',
+        tone=sanitize_input(request.form.get('tone', 'practical'), 50) or 'practical',
+        target_words=target_words,
+        faq_count=faq_count,
+    ))
+    db.session.commit()
+    flash('Topic added to the queue.', 'success')
+    return redirect(url_for('admin_ai'))
+
+
+@app.route('/admin/ai/topics/<int:topic_id>/generate', methods=['POST'])
+@require_admin
+def admin_ai_topic_generate(topic_id):
+    queued_topic = ContentTopic.query.get_or_404(topic_id)
+    if not ai_service.is_configured():
+        flash('AI is not configured. Set AI_API_KEY in the environment.', 'error')
+        return redirect(url_for('admin_ai'))
+    if ai_is_rate_limited(current_user.id):
+        flash('Too many AI requests. Wait a few minutes before generating again.', 'error')
+        return redirect(url_for('admin_ai'))
+
+    record_ai_call(current_user.id)
+    try:
+        post = generate_ai_post(
+            topic=queued_topic.topic, keyword=queued_topic.keyword or '',
+            category=queued_topic.category, tone=queued_topic.tone,
+            target_words=queued_topic.target_words or 1200,
+            faq_count=queued_topic.faq_count or 0,
+            publish=AI_AUTO_PUBLISH, author_id=current_user.id,
+            source_topic=queued_topic,
+        )
+    except ai_service.AiError as exc:
+        flash(str(exc), 'error')
+        return redirect(url_for('admin_ai'))
+    except Exception as exc:
+        logger.exception(f"Unexpected AI queue failure: {exc}")
+        flash('Generation failed unexpectedly. Check the server logs.', 'error')
+        return redirect(url_for('admin_ai'))
+
+    flash(f"Draft created: {post.title}", 'success')
+    return redirect(url_for('admin_edit_post', post_id=post.id))
+
+
+@app.route('/admin/ai/topics/<int:topic_id>/delete', methods=['POST'])
+@require_admin
+def admin_ai_topic_delete(topic_id):
+    queued_topic = ContentTopic.query.get_or_404(topic_id)
+    db.session.delete(queued_topic)
+    db.session.commit()
+    flash('Topic removed.', 'success')
+    return redirect(url_for('admin_ai'))
+
+
+@app.route('/admin/ai/generate-queued', methods=['POST'])
+@require_admin
+def admin_ai_generate_queued():
+    queued_topic = (ContentTopic.query.filter_by(status='queued')
+                    .order_by(ContentTopic.created_at.asc()).first())
+    if queued_topic is None:
+        flash('The topic queue is empty.', 'info')
+        return redirect(url_for('admin_ai'))
+    return admin_ai_topic_generate(queued_topic.id)
+
 
 @app.route('/admin/posts')
 @require_admin
@@ -684,7 +1298,7 @@ def admin_posts():
 def admin_create_post():
     if request.method == 'POST':
         title = sanitize_input(request.form.get('title', ''), 200)
-        content = sanitize_input(request.form.get('content', ''), 10000)
+        content = sanitize_input(request.form.get('content', ''), 20000)
         image_url = sanitize_input(request.form.get('image_url', ''), 500)
         image_alt = sanitize_input(request.form.get('image_alt', ''), 200)
         video_url = sanitize_input(request.form.get('video_url', ''), 500)
@@ -718,12 +1332,9 @@ def admin_create_post():
         final_video_url = video_url or uploaded_video_url
 
         try:
-            slug = title.lower().replace(' ', '-')[:250]
-            slug = re.sub(r'[^a-z0-9-]', '', slug)
-            
             post = Post(
                 title=title,
-                slug=slug,
+                slug=unique_slug(title),
                 content=content,
                 # [:160] guards the VARCHAR(160) column - PostgreSQL rejects
                 # longer values with StringDataRightTruncation
@@ -752,7 +1363,7 @@ def admin_create_post():
             flash('An error occurred. Please try again.', 'error')
             return redirect(url_for('admin_create_post'))
 
-    return render_template('admin_post_form.html', post=None)
+    return render_template('admin_post_form.html', post=None, post_faqs=[])
 
 @app.route('/admin/posts/<int:post_id>/edit', methods=['GET', 'POST'])
 @require_admin
@@ -760,8 +1371,18 @@ def admin_edit_post(post_id):
     post = Post.query.get_or_404(post_id)
 
     if request.method == 'POST':
+        # Validate FAQs before mutating anything, so a malformed JSON blob
+        # cannot be quietly dropped or saved half-applied.
+        faq_pairs = []
+        if request.form.get('faqs_present') == '1':
+            try:
+                faq_pairs = parse_faqs(request.form.get('faqs_json', ''))
+            except ValueError as exc:
+                flash(str(exc), 'error')
+                return redirect(url_for('admin_edit_post', post_id=post.id))
+
         post.title = sanitize_input(request.form.get('title', ''), 200)
-        post.content = sanitize_input(request.form.get('content', ''), 10000)
+        post.content = sanitize_input(request.form.get('content', ''), 20000)
         post.meta_description = sanitize_input(request.form.get('meta_description', ''), 160)[:160]
         post.image_alt = sanitize_input(request.form.get('image_alt', ''), 200)
 
@@ -797,6 +1418,12 @@ def admin_edit_post(post_id):
         post.published = request.form.get('published') == 'on'
         post.updated_at = datetime.utcnow()
 
+        if request.form.get('faqs_present') == '1':
+            PostFaq.query.filter_by(post_id=post.id).delete()
+            for position, (question, answer) in enumerate(faq_pairs):
+                db.session.add(PostFaq(post_id=post.id, question=question,
+                                       answer=answer, position=position))
+
         try:
             db.session.commit()
             flash('Post updated successfully!', 'success')
@@ -806,13 +1433,17 @@ def admin_edit_post(post_id):
             db.session.rollback()
             flash('An error occurred. Please try again.', 'error')
 
-    return render_template('admin_post_form.html', post=post)
+    post_faqs = (PostFaq.query.filter_by(post_id=post.id)
+                 .order_by(PostFaq.position, PostFaq.id).all())
+    return render_template('admin_post_form.html', post=post, post_faqs=post_faqs)
 
 @app.route('/admin/posts/<int:post_id>/delete', methods=['POST'])
 @require_admin
 def admin_delete_post(post_id):
     post = Post.query.get_or_404(post_id)
     try:
+        # FAQs have no cascade configured (new table, existing DBs via create_all)
+        PostFaq.query.filter_by(post_id=post.id).delete()
         db.session.delete(post)
         db.session.commit()
         flash('Post deleted successfully!', 'success')

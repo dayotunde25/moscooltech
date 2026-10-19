@@ -30,6 +30,7 @@
         </div>
     </nav>
 
+    {% include '_flash.html' %}
     <div class="container-fluid py-4">
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -86,7 +87,10 @@
                                     <p class="text-muted mb-0">{{ contact.message }}</p>
                                 </div>
 
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="{{ url_for('admin_lead_detail', contact_id=contact.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-user-tag me-1"></i>Open in CRM
+                                    </a>
                                     <a href="mailto:{{ contact.email }}" class="btn btn-primary btn-sm">
                                         <i class="fas fa-reply me-1"></i>Reply
                                     </a>

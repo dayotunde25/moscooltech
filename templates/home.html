@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}AC Repair, Solar & Refrigeration in Lagos & Ogun State | Moscool Tech{% endblock %}
+{% block title %}AC Repair, Solar & Refrigeration in Lagos | Moscool Tech{% endblock %}
 {% block meta_description %}<meta name="description" content="Moscool Technical Services — expert AC repair, refrigeration, solar, inverter and electrical installation in Lagos Mainland & Ogun State, Nigeria. Call 24/7.">{% endblock %}
+{% block meta_keywords %}<meta name="keywords" content="AC repair Lagos, air conditioning servicing Lagos, refrigerator repair Lagos, cold room repair Ogun State, solar panel installation Lagos, inverter installation Nigeria, electrical wiring Lagos Mainland">{% endblock %}
 {% block json_ld %}
 <script type="application/ld+json" nonce="{{ g.csp_nonce }}">
 {
@@ -9,19 +10,25 @@
   "@type": "LocalBusiness",
   "name": "Moscool Technical Services",
   "description": "Expert installation, repair and maintenance of air conditioning, refrigeration, solar systems, inverters and electrical wiring for homes and businesses in Lagos Mainland and Ogun State, Nigeria.",
-  "telephone": "+2349033150460",
-  "email": "dayotunde25@gmail.com",
-  "url": "{{ request.url_root }}",
+  "telephone": "{{ config.get('BUSINESS_PHONE') or '+2349033150460' }}",
+  "email": "{{ config.get('BUSINESS_EMAIL') or 'dayotunde25@gmail.com' }}",
+  "url": "{{ (config.get('SITE_URL') or request.url_root).rstrip('/') }}/",
+  "image": "{{ request.url_root }}static/img/og-image.png",
+  "logo": "{{ request.url_root }}static/img/favicon-192.png",
   "priceRange": "$$",
   "openingHours": "Mo-Fr 08:00-18:00",
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Lagos",
-    "addressRegion": "Lagos State",
+    {% if config.get('BUSINESS_ADDRESS') %}"streetAddress": {{ config.get('BUSINESS_ADDRESS')|tojson }},{% endif %}
+    "addressLocality": {{ (config.get('BUSINESS_LOCALITY') or 'Ifo')|tojson }},
+    "addressRegion": {{ (config.get('BUSINESS_REGION') or 'Ogun State')|tojson }},
     "addressCountry": "NG"
   },
+  "hasMap": "https://www.google.com/maps/search/?api=1&query={{ (config.get('BUSINESS_ADDRESS') ~ ', ' ~ config.get('BUSINESS_LOCALITY') ~ ', ' ~ config.get('BUSINESS_REGION') ~ ', Nigeria')|urlencode }}",
   "areaServed": [
     { "@type": "City", "name": "Lagos Mainland" },
+    { "@type": "City", "name": "Ifo" },
+    { "@type": "City", "name": "Agbado" },
     { "@type": "AdministrativeArea", "name": "Ogun State" }
   ],
   "sameAs": [
@@ -29,9 +36,52 @@
     "https://instagram.com/moscooltech",
     "https://twitter.com/dayotunde25",
     "https://t.me/dayotunde25"
+  ],
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Technical services",
+    "itemListElement": [
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Air conditioning installation and repair" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Commercial and domestic refrigeration repair" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Solar panel and inverter installation" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Electrical wiring and safety inspection" } }
+    ]
+  }
+}
+</script>
+<script type="application/ld+json" nonce="{{ g.csp_nonce }}">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do you offer same-day AC repair in Lagos?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. We run a 24/7 emergency line and aim for same-day diagnosis and repair across Lagos Mainland, including Ikeja, Yaba, Surulere, Maryland, Gbagada and Ogba. Call or WhatsApp +2349033150460 and describe the fault so the technician arrives with the right parts." }
+    },
+    {
+      "@type": "Question",
+      "name": "How much does AC servicing or repair cost in Lagos?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A standard AC service (cleaning and performance check) typically costs N10,000 to N25,000 per unit, a refrigerant recharge N25,000 to N60,000 depending on gas type and leak severity, and a capacitor replacement N10,000 to N25,000. You get a written quote before any work begins." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do you install solar and inverter systems in Ogun State?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. We design and install hybrid solar and inverter systems in Lagos Mainland and across Ogun State, including Magboro, Mowe and Ibafo. Every project starts with a free load audit and a written system design so the battery bank and inverter are sized to your real usage, not guesswork." }
+    },
+    {
+      "@type": "Question",
+      "name": "Are your technicians licensed, and is the work guaranteed?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Our technicians are experienced, insured and work to manufacturer procedures. Repairs carry a 90-day warranty on parts and labour, and installed solar, inverter and electrical systems come with written workmanship and equipment warranties." }
+    }
   ]
 }
 </script>
+{% endblock %}
+
+{% block extra_head %}
+<link rel="preload" as="image" fetchpriority="high"
+      href="https://images.unsplash.com/photo-1621905251918-48416bd8575a?ixlib=rb-4.0.3&amp;auto=format&amp;fit=crop&amp;w=800&amp;q=80">
 {% endblock %}
 
 {% block content %}
@@ -82,9 +132,10 @@
             <div class="col-lg-6 position-relative">
                 <div class="text-center">
                     <img src="https://images.unsplash.com/photo-1621905251918-48416bd8575a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                         alt="Professional technician working"
+                         alt="Technician servicing an air conditioning unit in Lagos"
+                         width="800" height="533" fetchpriority="high" decoding="async"
                          class="img-fluid rounded shadow-custom">
-                    <div class="position-absolute top-50 start-0 translate-middle-y bg-white p-3 rounded shadow-custom" style="z-index: 10;">
+                    <div class="position-absolute top-50 start-0 translate-middle-y bg-white p-3 rounded shadow-custom z-1">
                         <div class="h3 text-primary mb-0">15+</div>
                         <div class="text-muted small">Years Experience</div>
                     </div>
@@ -114,7 +165,7 @@
                             <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-snowflake text-primary fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Refrigeration</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Refrigeration</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Commercial and residential refrigeration installation, repair, and maintenance services.
@@ -137,7 +188,7 @@
                             <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-wind text-primary fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Air Conditioning</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Air Conditioning</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Complete HVAC solutions including installation, servicing, and energy-efficient upgrades.
@@ -160,7 +211,7 @@
                             <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-sun text-warning fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Solar Systems</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Solar Systems</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Solar panel installation, maintenance, and consulting for sustainable energy solutions.
@@ -183,7 +234,7 @@
                             <div class="bg-info bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-plug text-info fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Inverter Services</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Inverter Services</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Power inverter installation, repair, and optimization for uninterrupted power supply.
@@ -206,7 +257,7 @@
                             <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-bolt text-warning fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Electrical Work</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Electrical Work</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Comprehensive electrical services from wiring to safety inspections and upgrades.
@@ -229,7 +280,7 @@
                             <div class="bg-success bg-opacity-10 p-3 rounded me-3">
                                 <i class="fas fa-user-tie text-success fa-2x"></i>
                             </div>
-                            <h5 class="card-title mb-0 fw-bold">Consulting</h5>
+                            <h3 class="card-title h5 mb-0 fw-bold">Consulting</h3>
                         </div>
                         <p class="card-text text-muted mb-3">
                             Expert technical consulting to help you make informed decisions about your systems.
@@ -253,7 +304,8 @@
         <div class="row align-items-center">
             <div class="col-lg-6 mb-5 mb-lg-0">
                 <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                     alt="Professional team at work"
+                     alt="Moscool technical team working on a cooling system"
+                     width="800" height="533" loading="lazy" decoding="async"
                      class="img-fluid rounded shadow-custom">
             </div>
 
@@ -300,6 +352,89 @@
     </div>
 </section>
 
+<!-- Service Areas & Expertise (SEO content) -->
+<section id="service-areas" class="py-5">
+    <div class="container-fluid px-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <h2 class="section-title text-center">AC, Refrigeration &amp; Solar Services in Lagos Mainland &amp; Ogun State</h2>
+                <p class="text-muted mb-4">
+                    Moscool Technical Services is a Lagos-based technical team covering air conditioning,
+                    commercial and domestic refrigeration, solar and inverter systems, and electrical
+                    installation. Whether you need an AC repaired in Ikeja, a cold room brought back to
+                    temperature in Ogun State, or a solar system designed for a home in Magboro, the same
+                    process applies: diagnose properly, quote in writing, fix it once, and stand behind the work.
+                </p>
+
+                <h3 class="h5 fw-bold mt-4">What we are called out for most often</h3>
+                <p class="text-muted mb-4">
+                    Air conditioners that run but no longer cool, fridges and freezers that stop holding
+                    temperature, tripping breakers, and inverters that shut down under load. In Lagos these
+                    faults are usually caused by the same handful of things: dust-clogged condenser coils,
+                    refrigerant leaks, failed capacitors, corroded outdoor units near the coast, and battery
+                    banks that were undersized from day one. We test before we quote, so you are not paying
+                    for a guess.
+                </p>
+
+                <h3 class="h5 fw-bold mt-4">How our pricing works</h3>
+                <p class="text-muted mb-4">
+                    Call-outs are quoted upfront and most repairs are priced per fault, not per hour, so the
+                    cost does not creep while the technician is on site. Typical ranges are published in our
+                    guides &mdash; AC servicing from about &#8358;10,000 per unit, refrigerant recharges from
+                    about &#8358;25,000, and full solar packages from about &#8358;1.2m for a 1.5kVA essentials
+                    system. Read the
+                    <a href="{{ url_for('guides') }}" class="text-decoration-none">full guides and pricing breakdowns</a>
+                    before you book, or ask for a written quote on
+                    <a href="tel:+2349033150460" class="text-decoration-none">+234 903 315 0460</a>.
+                </p>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-4">
+                                <h3 class="h6 fw-bold"><i class="fas fa-map-marker-alt text-primary me-2"></i>Lagos Mainland</h3>
+                                <p class="text-muted small mb-2">
+                                    Ikeja, Yaba, Surulere, Maryland, Gbagada, Ogba, Agege, Iju and surrounding areas.
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    Same-day AC repair, fridge repair and emergency electrical call-outs.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-4">
+                                <h3 class="h6 fw-bold"><i class="fas fa-map-marker-alt text-primary me-2"></i>Ogun State</h3>
+                                <p class="text-muted small mb-2">
+                                    Magboro, Mowe, Ibafo, Arepo, OPIC and nearby communities.
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    Solar and inverter installations, plus scheduled maintenance visits.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-4">
+                                <h3 class="h6 fw-bold"><i class="fas fa-clock text-primary me-2"></i>Emergency response</h3>
+                                <p class="text-muted small mb-2">
+                                    24/7 for clinics, cold rooms, server rooms and homes with elderly residents.
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    <a href="https://wa.me/2349033150460" class="text-decoration-none" rel="noopener noreferrer" target="_blank">WhatsApp us</a>
+                                    with a photo of the unit or error code for faster diagnosis.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- Portfolio Section -->
 <section id="portfolio" class="py-5 bg-light">
     <div class="container-fluid px-4">
@@ -331,14 +466,15 @@
                                 {% if post.image_url %}
                                     <div class="position-relative overflow-hidden">
                                         <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}"
-                                             class="card-img-top" style="height: 200px; object-fit: cover;" loading="lazy">
+                                             width="600" height="400" class="card-img-top card-img-cover"
+                                             loading="lazy" decoding="async">
                                         <div class="position-absolute top-0 end-0 m-2">
                                             <span class="badge bg-primary">Portfolio</span>
                                         </div>
                                     </div>
                                 {% endif %}
                                 <div class="card-body">
-                                    <h6 class="card-title fw-bold">{{ post.title }}</h6>
+                                    <h3 class="card-title h6 fw-bold">{{ post.title }}</h3>
                                     <p class="card-text text-muted small">{{ post.content[:100] }}...</p>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <small class="text-muted">{{ post.created_at.strftime('%B %d, %Y') }}</small>
@@ -367,14 +503,15 @@
                                 {% if post.image_url %}
                                     <div class="position-relative overflow-hidden">
                                         <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}"
-                                             class="card-img-top" style="height: 200px; object-fit: cover;" loading="lazy">
+                                             width="600" height="400" class="card-img-top card-img-cover"
+                                             loading="lazy" decoding="async">
                                         <div class="position-absolute top-0 end-0 m-2">
                                             <span class="badge bg-success">For Sale</span>
                                         </div>
                                     </div>
                                 {% endif %}
                                 <div class="card-body">
-                                    <h6 class="card-title fw-bold">{{ post.title }}</h6>
+                                    <h3 class="card-title h6 fw-bold">{{ post.title }}</h3>
                                     {% if post.price %}
                                         <p class="text-success fw-bold mb-1">{{ post.currency }} {{ "%.2f"|format(post.price) }}</p>
                                     {% endif %}
@@ -415,11 +552,12 @@
                     <div class="card news-card h-100 border-0 shadow-sm">
                         {% if post.image_url %}
                             <img src="{{ post.image_url }}" alt="{{ post.image_alt or post.title }}" loading="lazy"
-                                 class="card-img-top" style="height: 200px; object-fit: cover;">
+                                 decoding="async" width="600" height="400"
+                                 class="card-img-top card-img-cover">
                         {% endif %}
                         <div class="card-body">
                             <small class="text-muted"><i class="fas fa-book-open me-1"></i>Guide</small>
-                            <h6 class="card-title fw-bold mt-2">{{ post.title }}</h6>
+                            <h3 class="card-title h6 fw-bold mt-2">{{ post.title }}</h3>
                             <p class="card-text text-muted small">{{ post.meta_description or post.content[:140] }}...</p>
                             <a href="{{ url_for('post_detail', post_id=post.id) }}"
                                class="btn btn-outline-primary btn-sm stretched-link">
@@ -433,6 +571,88 @@
     </div>
 </section>
 {% endif %}
+
+<!-- FAQ Section (targets long-tail searches + FAQ rich results) -->
+<section id="faq" class="py-5 bg-light">
+    <div class="container-fluid px-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="section-title text-center">Frequently Asked Questions</h2>
+                <p class="section-subtitle text-center mb-4">
+                    Quick answers about AC repair, servicing costs and solar installation in Lagos and Ogun State.
+                </p>
+                <div class="accordion" id="homeFaqAccordion">
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="home-faq-h-1">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#home-faq-1" aria-expanded="true">
+                                Do you offer same-day AC repair in Lagos?
+                            </button>
+                        </h3>
+                        <div id="home-faq-1" class="accordion-collapse collapse show" data-bs-parent="#homeFaqAccordion">
+                            <div class="accordion-body text-muted">
+                                Yes. We run a 24/7 emergency line and aim for same-day diagnosis and repair across
+                                Lagos Mainland, including Ikeja, Yaba, Surulere, Maryland, Gbagada and Ogba. Call or
+                                WhatsApp +2349033150460 and describe the fault so the technician arrives with the right parts.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="home-faq-h-2">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#home-faq-2" aria-expanded="false">
+                                How much does AC servicing or repair cost in Lagos?
+                            </button>
+                        </h3>
+                        <div id="home-faq-2" class="accordion-collapse collapse" data-bs-parent="#homeFaqAccordion">
+                            <div class="accordion-body text-muted">
+                                A standard AC service (cleaning and performance check) typically costs
+                                &#8358;10,000 to &#8358;25,000 per unit, a refrigerant recharge &#8358;25,000 to
+                                &#8358;60,000 depending on gas type and leak severity, and a capacitor replacement
+                                &#8358;10,000 to &#8358;25,000. You get a written quote before any work begins.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="home-faq-h-3">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#home-faq-3" aria-expanded="false">
+                                Do you install solar and inverter systems in Ogun State?
+                            </button>
+                        </h3>
+                        <div id="home-faq-3" class="accordion-collapse collapse" data-bs-parent="#homeFaqAccordion">
+                            <div class="accordion-body text-muted">
+                                Yes. We design and install hybrid solar and inverter systems in Lagos Mainland and
+                                across Ogun State, including Magboro, Mowe and Ibafo. Every project starts with a free
+                                load audit and a written system design so the battery bank and inverter are sized to
+                                your real usage, not guesswork.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="home-faq-h-4">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#home-faq-4" aria-expanded="false">
+                                Are your technicians licensed, and is the work guaranteed?
+                            </button>
+                        </h3>
+                        <div id="home-faq-4" class="accordion-collapse collapse" data-bs-parent="#homeFaqAccordion">
+                            <div class="accordion-body text-muted">
+                                Our technicians are experienced, insured and work to manufacturer procedures. Repairs
+                                carry a 90-day warranty on parts and labour, and installed solar, inverter and electrical
+                                systems come with written workmanship and equipment warranties.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-center text-muted small mt-4 mb-0">
+                    More detailed answers are in our
+                    <a href="{{ url_for('guides') }}" class="text-decoration-none">guides &amp; tips</a>.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
 
 <!-- News Section -->
 <section id="news" class="py-5">
@@ -451,14 +671,15 @@
                         <div class="card news-card h-100 border-0 shadow-sm">
                             {% if article.image_url %}
                                 <img src="{{ article.image_url }}" alt="{{ article.title }}" loading="lazy"
-                                     class="card-img-top" style="height: 200px; object-fit: cover;">
+                                     decoding="async" width="600" height="400"
+                                     class="card-img-top card-img-cover">
                             {% endif %}
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <small class="text-muted">{{ article.source_id }}</small>
                                     <small class="text-muted">{{ article.pub_date.strftime('%b %d, %I:%M %p') }}</small>
                                 </div>
-                                <h6 class="card-title fw-bold">{{ article.title }}</h6>
+                                <h3 class="card-title h6 fw-bold">{{ article.title }}</h3>
                                 <p class="card-text text-muted small">{{ article.description[:150] }}...</p>
                                 <a href="{{ article.link }}" target="_blank" rel="noopener noreferrer"
                                    class="btn btn-outline-primary btn-sm">
@@ -590,7 +811,7 @@
             <div class="col-lg-6">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="fas fa-envelope me-2"></i>Send us a Message</h5>
+                        <h3 class="h5 mb-0"><i class="fas fa-envelope me-2"></i>Send us a Message</h3>
                     </div>
                     <div class="card-body p-4">
                         <form method="POST" action="{{ url_for('submit_contact') }}" novalidate>
@@ -639,8 +860,10 @@
                                         <i class="fas fa-phone text-primary fa-lg"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 fw-bold">Emergency Line</h6>
-                                        <p class="mb-0 text-muted">+234(90)33150460</p>
+                                        <h3 class="h6 mb-1 fw-bold">Emergency Line</h3>
+                                        <p class="mb-0 text-muted">
+                                            <a href="tel:+2349033150460" class="text-decoration-none text-muted">+234 903 315 0460</a>
+                                        </p>
                                         <small class="text-muted">Available 24/7 for emergencies</small>
                                     </div>
                                 </div>
@@ -656,8 +879,10 @@
                                         <i class="fab fa-whatsapp text-success fa-lg"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 fw-bold">WhatsApp</h6>
-                                        <p class="mb-0 text-muted">+2349033150460</p>
+                                        <h3 class="h6 mb-1 fw-bold">WhatsApp</h3>
+                                        <p class="mb-0 text-muted">
+                                            <a href="https://wa.me/2349033150460" class="text-decoration-none text-muted" target="_blank" rel="noopener noreferrer">+234 903 315 0460</a>
+                                        </p>
                                         <small class="text-muted">Quick response guaranteed</small>
                                     </div>
                                 </div>
@@ -673,9 +898,36 @@
                                         <i class="fas fa-envelope text-info fa-lg"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 fw-bold">Email Us</h6>
-                                        <p class="mb-0 text-muted">dayotunde25@gmail.com</p>
+                                        <h3 class="h6 mb-1 fw-bold">Email Us</h3>
+                                        <p class="mb-0 text-muted">
+                                            <a href="mailto:dayotunde25@gmail.com" class="text-decoration-none text-muted">dayotunde25@gmail.com</a>
+                                        </p>
                                         <small class="text-muted">We'll respond within 2 hours</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-danger bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-map-marker-alt text-danger fa-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="h6 mb-1 fw-bold">Workshop Address</h3>
+                                        <p class="mb-1 text-muted">
+                                            {{ config.get('BUSINESS_ADDRESS') }}<br>
+                                            {{ config.get('BUSINESS_LOCALITY') }}, {{ config.get('BUSINESS_REGION') }}, Nigeria
+                                        </p>
+                                        <small>
+                                            <a href="https://www.google.com/maps/search/?api=1&amp;query={{ (config.get('BUSINESS_ADDRESS') ~ ', ' ~ config.get('BUSINESS_LOCALITY') ~ ', ' ~ config.get('BUSINESS_REGION') ~ ', Nigeria')|urlencode }}"
+                                               target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                                <i class="fas fa-directions me-1"></i>Get directions
+                                            </a>
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -690,7 +942,7 @@
                                         <i class="fas fa-clock text-warning fa-lg"></i>
                                     </div>
                                     <div>
-                                        <h6 class="mb-1 fw-bold">Business Hours</h6>
+                                        <h3 class="h6 mb-1 fw-bold">Business Hours</h3>
                                         <p class="mb-0 text-muted">Mon-Fri: 8:00 AM - 6:00 PM</p>
                                         <p class="mb-0 text-muted">Sat-Sun: Emergency Only</p>
                                     </div>
@@ -708,11 +960,11 @@
                                             <i class="fas fa-star text-warning fa-lg"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-1 fw-bold">Happy with our work?</h6>
+                                            <h3 class="h6 mb-1 fw-bold">Happy with our work?</h3>
                                             <p class="mb-0 text-muted small">Your Google review helps other Lagos &amp; Ogun customers find us.</p>
                                         </div>
                                     </div>
-                                    <a href="{{ config.get('GOOGLE_REVIEW_URL') or 'https://www.google.com/maps/search/Moscool+Technical+Services+Lagos' }}"
+                                    <a href="{{ config.get('GOOGLE_REVIEW_URL') }}"
                                        target="_blank" rel="noopener noreferrer" class="btn btn-warning fw-semibold">
                                         <i class="fab fa-google me-2"></i>Leave a Review
                                     </a>
