@@ -1442,8 +1442,14 @@ def admin_edit_post(post_id):
 def admin_delete_post(post_id):
     post = Post.query.get_or_404(post_id)
     try:
-        # FAQs have no cascade configured (new table, existing DBs via create_all)
+        # These tables have FKs to post.id and no cascade configured (they are
+        # created via db.create_all, not migrations). Clear the references first
+        # or PostgreSQL blocks the delete.
         PostFaq.query.filter_by(post_id=post.id).delete()
+        AiGeneration.query.filter_by(post_id=post.id).update(
+            {'post_id': None}, synchronize_session=False)
+        ContentTopic.query.filter_by(post_id=post.id).update(
+            {'post_id': None, 'status': 'queued'}, synchronize_session=False)
         db.session.delete(post)
         db.session.commit()
         flash('Post deleted successfully!', 'success')

@@ -523,3 +523,29 @@ def test_ai_generate_queued_endpoint_processes_oldest_topic(client, csrf, monkey
         topic = db.session.get(app_module.ContentTopic, topic_id)
         assert topic.status == 'generated'
         assert app_module.Post.query.filter_by(post_type='article').count() == 1
+
+
+def test_deleting_an_ai_post_clears_dependents(client, csrf):
+    login(client, csrf)
+    with client.application.app_context():
+        user = User.query.filter_by(username='admin').first()
+        post = Post(title='Delete Me', slug='delete-me', content='Body',
+                    post_type='article', published=True, author_id=user.id)
+        db.session.add(post)
+        db.session.commit()
+        post_id = post.id
+        db.session.add(app_module.PostFaq(post_id=post_id, question='Q?', answer='A.'))
+        db.session.add(app_module.AiGeneration(topic='Delete Me', status='success', post_id=post_id))
+        db.session.add(app_module.ContentTopic(topic='Delete Me', status='generated', post_id=post_id))
+        db.session.commit()
+
+    token = csrf(client, '/admin/posts')
+    r = client.post(f'/admin/posts/{post_id}/delete', data={'csrf_token': token},
+                    follow_redirects=True)
+    assert r.status_code == 200
+    with client.application.app_context():
+        assert db.session.get(Post, post_id) is None
+        assert app_module.PostFaq.query.filter_by(post_id=post_id).count() == 0
+        assert app_module.AiGeneration.query.filter_by(post_id=post_id).count() == 0
+        topic = app_module.ContentTopic.query.filter_by(topic='Delete Me').first()
+        assert topic is not None and topic.post_id is None and topic.status == 'queued'
