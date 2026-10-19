@@ -549,3 +549,15 @@ def test_deleting_an_ai_post_clears_dependents(client, csrf):
         assert app_module.AiGeneration.query.filter_by(post_id=post_id).count() == 0
         topic = app_module.ContentTopic.query.filter_by(topic='Delete Me').first()
         assert topic is not None and topic.post_id is None and topic.status == 'queued'
+
+
+def test_crm_and_ai_routes_require_login_and_csrf(client):
+    # Anonymous GETs redirect to the login page.
+    for path in ['/admin/leads', '/admin/ai']:
+        r = client.get(path)
+        assert r.status_code == 302 and '/admin/login' in r.headers.get('Location', '')
+
+    # State changes without a CSRF token are rejected before the view runs.
+    assert client.post('/admin/ai/generate', data={'topic': 'x'}).status_code == 400
+    assert client.post('/admin/leads/1/status', data={'status': 'won'}).status_code == 400
+    assert client.post('/admin/leads/1/notes', data={'body': 'x'}).status_code == 400
